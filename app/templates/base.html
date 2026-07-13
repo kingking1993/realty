@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Realty{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="topnav">
+    <a href="/" class="brand">🏢 Realty</a>
+    <a href="/">대시보드</a>
+    <a href="/feed">뉴스·카페</a>
+    <span class="spacer"></span>
+    <button class="btn" onclick="collect('listings', this)">매물 수집</button>
+    <button class="btn" onclick="collect('transactions', this)">실거래 수집</button>
+    <button class="btn" onclick="collect('articles', this)">뉴스 수집</button>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    async function collect(job, btn) {
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.textContent = '실행 중…';
+      try {
+        await fetch('/collect/' + job, {method: 'POST'});
+        btn.textContent = '시작됨 ✓ (잠시 후 새로고침)';
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 5000);
+      } catch (e) {
+        btn.textContent = '실패';
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+      }
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Render Blueprint — 무료 티어 웹 서비스.
+# 무료 티어 제약과 대응:
+#   - 디스크 휘발성 → DATABASE_URL 에 Neon 무료 Postgres 연결
+#   - 15분 무접속 시 잠듦 → cron-job.org 가 수집 시각에 /collect/{job}?key=... 를 호출해
+#     깨우면서 수집 트리거 (내부 스케줄러는 DISABLE_SCHEDULER=1 로 끔)
+services:
+  - type: web
+    name: realty
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: TZ
+        value: Asia/Seoul
+      - key: DISABLE_SCHEDULER
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: MOLIT_API_KEY
+        sync: false
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: APP_PASSWORD
+        sync: false

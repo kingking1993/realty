@@ -1,0 +1,18 @@
+# 추적할 아파트 단지 목록.
+# naver_complex_no: 네이버 부동산 단지 번호 — `python scripts/find_complex.py "단지명"` 으로 검색
+# lawd_cd: 법정동코드 앞 5자리 (시군구) — https://www.code.go.kr 에서 검색
+# umd_nm: 법정동 이름 (예: 등촌동) — 같은 구에 같은 이름의 단지가 있을 때 구분용. 비우면 이름만으로 매칭
+# apt_name_molit: 실거래가 API 응답의 아파트명 (aptNm) — 정확히 일치해야 거래가 이 단지로 매칭됨.
+#                 비워두면 name 으로 부분 일치 시도. 첫 실거래 수집 후 로그를 보고 채우는 것을 권장.
+# keywords: 뉴스/카페 검색 키워드 목록
+
+complexes:
+  - name: 등촌부영
+    naver_complex_no: "7"
+    lawd_cd: "11500"          # 서울 강서구
+    umd_nm: 등촌동
+    apt_name_molit: 부영
+    keywords:
+      - 등촌 부영
+      - 등촌부영
+      - 등촌동 부영아파트
