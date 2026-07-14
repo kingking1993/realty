@@ -15,7 +15,85 @@
 > ⚠ 실거래 신고 기한이 계약 후 30일이라, 매물이 사라지고 실제 거래가 확인되기까지
 > 최대 한 달 걸릴 수 있습니다. 그동안은 "매칭 대기"로 표시됩니다.
 
-## 설치
+## 구성
+
+- **백엔드**: FastAPI (JSON API + React 빌드 결과물 서빙) — `app/`
+- **프론트엔드**: React + Vite — `frontend/` (빌드하면 `frontend/dist` 생성, FastAPI가 이를 서빙)
+- **DB**: 로컬은 SQLite(`data/realty.db`), 배포는 Postgres(`DATABASE_URL`)
+
+## 로컬 실행 (macOS)
+
+### 사전 준비 (최초 1회)
+
+[Homebrew](https://brew.sh)로 `uv`(파이썬 관리)와 `node`(프론트엔드 빌드)를 설치합니다.
+> macOS 기본 파이썬(3.9)은 SQLAlchemy 2.0의 타입 어노테이션을 런타임에 해석하지 못하므로,
+> `uv`로 배포 타깃과 동일한 **Python 3.12** 환경을 만들어 씁니다.
+
+```bash
+brew install uv node
+```
+
+### 1. 백엔드 의존성 설치
+
+```bash
+cd ~/Downloads/realty
+uv venv --python 3.12 .venv
+VIRTUAL_ENV=.venv uv pip install -r requirements.txt
+```
+
+### 2. 프론트엔드 빌드
+
+```bash
+cd frontend
+npm install
+npm run build          # frontend/dist 생성 (FastAPI가 서빙)
+cd ..
+```
+
+### 3. 서버 실행
+
+```bash
+DISABLE_SCHEDULER=1 DATABASE_URL="" APP_PASSWORD="" TZ=Asia/Seoul \
+  .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8010
+```
+
+브라우저에서 http://127.0.0.1:8010 접속.
+
+| 환경변수 | 의미 |
+|---|---|
+| `DISABLE_SCHEDULER=1` | 자동 수집 스케줄러 끔 (로컬에선 화면 버튼/스크립트로 수동 수집) |
+| `DATABASE_URL=""` | 비우면 로컬 SQLite(`data/realty.db`) 사용 |
+| `APP_PASSWORD=""` | 비우면 비밀번호 없이 접속 |
+
+화면 우상단의 **매물/실거래/뉴스 수집** 버튼으로 즉시 수집하거나, 앱 실행 없이:
+
+```bash
+DATABASE_URL="" .venv/bin/python scripts/collect_now.py --job all   # listings/transactions/articles
+```
+
+> 매물 수집(네이버 부동산)은 키 없이 동작하지만, 실거래·뉴스 수집은 아래 API 키가 필요합니다.
+
+### 개발 모드 (UI 수정 시 핫리로드)
+
+프론트를 매번 빌드하지 않고 Vite 개발 서버(5173)를 씁니다. `/api`는 8010으로 프록시됩니다.
+
+```bash
+# 터미널 1 — 백엔드
+DISABLE_SCHEDULER=1 .venv/bin/uvicorn app.main:app --port 8010
+
+# 터미널 2 — 프론트엔드
+cd frontend && npm run dev
+```
+
+→ http://localhost:5173 접속
+
+### 테스트
+
+```bash
+DATABASE_URL="" .venv/bin/python -m pytest
+```
+
+## 설치 (Windows)
 
 ```powershell
 python -m venv .venv
@@ -49,7 +127,9 @@ complexes:
 - **apt_name_molit**: 처음엔 비워두고 실거래 수집을 한 번 실행하면,
   이름이 안 맞을 때 로그에 그 지역 단지명 목록이 표시되므로 그걸 보고 채우면 됨
 
-## 실행
+## 실행 (Windows)
+
+> 프론트엔드 빌드가 선행되어야 합니다: `cd frontend && npm install && npm run build`
 
 ```powershell
 .\.venv\Scripts\uvicorn app.main:app --port 8000
