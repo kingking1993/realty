@@ -184,6 +184,15 @@ def upsert_transactions(session: Session, complex_obj: Complex, trades: list[dic
     return added
 
 
+def filter_new_articles(session: Session, items: list[dict]) -> list[dict]:
+    """DB에 없는 링크의 항목만 반환 (작성일 조회 등 비싼 후처리 전 선별용)."""
+    links = [i["link"] for i in items if i.get("link")]
+    if not links:
+        return []
+    existing = set(session.scalars(select(Article.link).where(Article.link.in_(links))))
+    return [i for i in items if i.get("link") and i["link"] not in existing]
+
+
 def upsert_articles(session: Session, complex_id: int, items: list[dict],
                     topic: str = "complex", now: datetime | None = None) -> int:
     """뉴스/카페 글 저장 (link 기준 중복 제거). 신규 건수 반환."""

@@ -9,9 +9,12 @@ from __future__ import annotations
 import html as html_mod
 import logging
 import re
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 import httpx
+
+KST = timezone(timedelta(hours=9))
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ HEADERS = {
 
 _POST_RE = re.compile(r'<a[^>]+href="(/kr/post/[^"]+)"[^>]*>(.*?)</a>', re.DOTALL)
 _TAG_RE = re.compile(r"<[^>]+>")
+_DATE_RE = re.compile(r'"datePublished"\s*:\s*"([^"]+)"')
 
 
 class BlindError(Exception):
@@ -53,6 +57,21 @@ def parse_posts(page_html: str) -> list[dict]:
             "pub_date": None,
         })
     return results
+
+
+def fetch_post_date(link: str) -> datetime | None:
+    """글 페이지의 JSON-LD datePublished → KST naive datetime. 실패 시 None."""
+    try:
+        resp = httpx.get(link, headers=HEADERS, timeout=20, follow_redirects=True)
+        resp.raise_for_status()
+        m = _DATE_RE.search(resp.text)
+        if not m:
+            return None
+        raw = m.group(1).replace("Z", "+00:00")
+        return datetime.fromisoformat(raw).astimezone(KST).replace(tzinfo=None)
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning("Blind 작성일 조회 실패 (%s): %s", link, e)
+        return None
 
 
 def search_blind(keyword: str) -> list[dict]:

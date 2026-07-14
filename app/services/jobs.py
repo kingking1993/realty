@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import random
+import time
 from datetime import datetime
 
 from app.collectors import blind, molit, naver_land, naver_search
@@ -134,7 +136,12 @@ def run_articles_job() -> str:
                         logger.error("기사 수집 실패 (%s/%s): %s", cx.name, kw, e)
                     try:
                         posts = [p for p in blind.search_blind(kw) if _is_relevant(p, kw, mode)]
-                        added["blind"] += ingest.upsert_articles(session, cx.id, posts, topic=topic)
+                        # 새 글만 글 페이지를 열어 작성일 확보 (저빈도 유지용 딜레이)
+                        new_posts = ingest.filter_new_articles(session, posts)
+                        for p in new_posts:
+                            p["pub_date"] = blind.fetch_post_date(p["link"])
+                            time.sleep(random.uniform(0.5, 1.2))
+                        added["blind"] += ingest.upsert_articles(session, cx.id, new_posts, topic=topic)
                     except blind.BlindError as e:
                         # Blind는 부가 소스 — 실패해도 잡 전체를 실패로 치지 않음
                         lines.append(f"{cx.name}/{kw}: Blind 실패 — {e}")

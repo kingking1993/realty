@@ -14,13 +14,6 @@
   <a href="/feed?source={{ source }}&topic=complex" class="{{ 'active' if topic == 'complex' else '' }}">{{ topic_labels.complex }}</a>
   <a href="/feed?source={{ source }}&topic=area" class="{{ 'active' if topic == 'area' else '' }}">{{ topic_labels.area }}</a>
 </div>
-<div class="filters">
-  <a href="/feed?source={{ source }}" class="{{ 'active' if not complex_id else '' }}">모든 단지</a>
-  {% for cx in complexes %}
-  <a href="/feed?source={{ source }}&complex_id={{ cx.id }}" class="{{ 'active' if complex_id == cx.id else '' }}">{{ cx.name }}</a>
-  {% endfor %}
-</div>
-
 {% if articles %}
   {% for a in articles %}
   <div class="feeditem">
