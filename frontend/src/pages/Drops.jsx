@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import {
+  TrendingDown, Percent, PackageX, CheckCheck,
+} from 'lucide-react'
 import { getJSON } from '../api.js'
 import { fmtPrice, fmtDateShort } from '../format.js'
 
 const DAY_OPTIONS = [7, 30, 90]
+
+function H2Icon({ icon: Icon }) {
+  return (
+    <span className="h2-icon">
+      <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
+    </span>
+  )
+}
 
 /** 내려간 매물 추적 — 가격 인하 + 소멸(실거래 매칭). */
 export default function Drops() {
@@ -46,24 +57,32 @@ export default function Drops() {
 
       <div className="stats">
         <div className="stat hero">
-          <div className="label">가격 인하</div>
+          <div className="label">
+            <TrendingDown size={14} strokeWidth={2} aria-hidden="true" />가격 인하
+          </div>
           <div className="value">{totalCut}건</div>
         </div>
         <div className="stat">
-          <div className="label">평균 인하율</div>
+          <div className="label">
+            <Percent size={14} strokeWidth={2} aria-hidden="true" />평균 인하율
+          </div>
           <div className="value">{avgCutPct !== null ? `-${avgCutPct}%` : '-'}</div>
         </div>
         <div className="stat">
-          <div className="label">소멸 매물</div>
+          <div className="label">
+            <PackageX size={14} strokeWidth={2} aria-hidden="true" />소멸 매물
+          </div>
           <div className="value">{data.removed.length}건</div>
         </div>
         <div className="stat">
-          <div className="label">실거래 매칭</div>
+          <div className="label">
+            <CheckCheck size={14} strokeWidth={2} aria-hidden="true" />실거래 매칭
+          </div>
           <div className="value">{matchedCount}건</div>
         </div>
       </div>
 
-      <h2>가격 인하 매물</h2>
+      <h2><H2Icon icon={TrendingDown} />가격 인하 매물</h2>
       {data.cuts.length ? (
         <div className="table-wrap">
           <table>
@@ -100,7 +119,7 @@ export default function Drops() {
         <div className="empty">최근 {days}일 동안 가격이 내려간 매물이 없습니다.</div>
       )}
 
-      <h2>소멸 매물</h2>
+      <h2><H2Icon icon={PackageX} />소멸 매물</h2>
       <p className="muted">
         호가에서 사라진 매물입니다. 매매의 경우 실거래 신고와 매칭해 실제 거래 여부를 추정합니다.
       </p>

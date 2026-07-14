@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getJSON } from '../api.js'
 import { fmtDateShort, SOURCE_LABELS } from '../format.js'
+import SourceTag from '../components/SourceTag.jsx'
 
 export default function Feed() {
   const [params, setParams] = useSearchParams()
@@ -70,7 +71,7 @@ export default function Feed() {
       {data.articles.length ? (
         data.articles.map((a) => (
           <div className="feeditem" key={a.id}>
-            <span className={`tag ${a.source}`}>{SOURCE_LABELS[a.source]}</span>
+            <SourceTag source={a.source} />
             <a className="title" href={a.link} target="_blank" rel="noopener noreferrer">{a.title}</a>
             {a.description && <div className="desc">{a.description}</div>}
             <div className="meta">

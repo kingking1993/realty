@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import {
+  LineChart, Tag, History, TrendingUp, Receipt,
+  Layers, ArrowDownToLine, ArrowUpToLine, Sigma,
+} from 'lucide-react'
 import { getJSON } from '../api.js'
 import { fmtPrice, fmtDateShort, EVENT_LABELS } from '../format.js'
 import TrendChart from '../components/TrendChart.jsx'
 import TransactionChart from '../components/TransactionChart.jsx'
 
 const TRADE_TYPES = ['매매', '전세', '월세']
+
+function H2Icon({ icon: Icon }) {
+  return (
+    <span className="h2-icon">
+      <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
+    </span>
+  )
+}
 
 /** 호가현황 요약 — 현재 매물의 최저/평균/최고 호가. */
 function AskingStats({ listings, tradeType }) {
@@ -17,19 +29,27 @@ function AskingStats({ listings, tradeType }) {
   return (
     <div className="stats">
       <div className="stat hero">
-        <div className="label">{tradeType} 매물</div>
+        <div className="label">
+          <Layers size={14} strokeWidth={2} aria-hidden="true" />{tradeType} 매물
+        </div>
         <div className="value">{listings.length}건</div>
       </div>
       <div className="stat">
-        <div className="label">최저 호가</div>
+        <div className="label">
+          <ArrowDownToLine size={14} strokeWidth={2} aria-hidden="true" />최저 호가
+        </div>
         <div className="value">{fmtPrice(min)}</div>
       </div>
       <div className="stat">
-        <div className="label">평균 호가</div>
+        <div className="label">
+          <Sigma size={14} strokeWidth={2} aria-hidden="true" />평균 호가
+        </div>
         <div className="value">{fmtPrice(avg)}</div>
       </div>
       <div className="stat">
-        <div className="label">최고 호가</div>
+        <div className="label">
+          <ArrowUpToLine size={14} strokeWidth={2} aria-hidden="true" />최고 호가
+        </div>
         <div className="value">{fmtPrice(max)}</div>
       </div>
     </div>
@@ -58,10 +78,10 @@ export default function ComplexDetail() {
         <h1>{data.complex.name}</h1>
       </div>
 
-      <h2>매물 수 추이 (최근 90일)</h2>
+      <h2><H2Icon icon={LineChart} />매물 수 추이 (최근 90일)</h2>
       <TrendChart chart={data.chart} />
 
-      <h2>호가현황 · 현재 매물</h2>
+      <h2><H2Icon icon={Tag} />호가현황 · 현재 매물</h2>
       <div className="filters">
         {TRADE_TYPES.map((tt) => (
           <button
@@ -103,7 +123,7 @@ export default function ComplexDetail() {
         <div className="empty">{tradeType} 매물이 없습니다 (또는 아직 수집 전).</div>
       )}
 
-      <h2>매물 변동 로그</h2>
+      <h2><H2Icon icon={History} />매물 변동 로그</h2>
       {data.events.length ? (
         <div className="table-wrap">
           <table>
@@ -145,10 +165,10 @@ export default function ComplexDetail() {
         <div className="empty">아직 변동 로그가 없습니다.</div>
       )}
 
-      <h2>실거래가 변화 (매매)</h2>
+      <h2><H2Icon icon={TrendingUp} />실거래가 변화 (매매)</h2>
       <TransactionChart transactions={data.transactions} />
 
-      <h2>실거래 내역 (매매)</h2>
+      <h2><H2Icon icon={Receipt} />실거래 내역 (매매)</h2>
       {data.transactions.length ? (
         <>
           <div className="table-wrap">
