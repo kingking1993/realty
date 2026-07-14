@@ -3,8 +3,38 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getJSON } from '../api.js'
 import { fmtPrice, fmtDateShort, EVENT_LABELS } from '../format.js'
 import TrendChart from '../components/TrendChart.jsx'
+import TransactionChart from '../components/TransactionChart.jsx'
 
 const TRADE_TYPES = ['매매', '전세', '월세']
+
+/** 호가현황 요약 — 현재 매물의 최저/평균/최고 호가. */
+function AskingStats({ listings, tradeType }) {
+  const prices = listings.map((l) => l.price).filter((p) => p > 0)
+  if (!prices.length) return null
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
+  return (
+    <div className="stats">
+      <div className="stat hero">
+        <div className="label">{tradeType} 매물</div>
+        <div className="value">{listings.length}건</div>
+      </div>
+      <div className="stat">
+        <div className="label">최저 호가</div>
+        <div className="value">{fmtPrice(min)}</div>
+      </div>
+      <div className="stat">
+        <div className="label">평균 호가</div>
+        <div className="value">{fmtPrice(avg)}</div>
+      </div>
+      <div className="stat">
+        <div className="label">최고 호가</div>
+        <div className="value">{fmtPrice(max)}</div>
+      </div>
+    </div>
+  )
+}
 
 export default function ComplexDetail() {
   const { id } = useParams()
@@ -31,7 +61,7 @@ export default function ComplexDetail() {
       <h2>매물 수 추이 (최근 90일)</h2>
       <TrendChart chart={data.chart} />
 
-      <h2>현재 매물</h2>
+      <h2>호가현황 · 현재 매물</h2>
       <div className="filters">
         {TRADE_TYPES.map((tt) => (
           <button
@@ -43,6 +73,7 @@ export default function ComplexDetail() {
           </button>
         ))}
       </div>
+      <AskingStats listings={data.listings} tradeType={tradeType} />
       {data.listings.length ? (
         <>
           <div className="table-wrap">
@@ -113,6 +144,9 @@ export default function ComplexDetail() {
       ) : (
         <div className="empty">아직 변동 로그가 없습니다.</div>
       )}
+
+      <h2>실거래가 변화 (매매)</h2>
+      <TransactionChart transactions={data.transactions} />
 
       <h2>실거래 내역 (매매)</h2>
       {data.transactions.length ? (

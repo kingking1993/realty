@@ -75,6 +75,7 @@ export default function Dashboard() {
 
       <h2>최근 매물 변동</h2>
       {data.events.length ? (
+        <>
         <div className="table-wrap">
           <table>
             <thead>
@@ -101,6 +102,8 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+        <p><Link className="more-link" to="/drops">내려간 매물 추적 →</Link></p>
+        </>
       ) : (
         <div className="empty">아직 수집된 매물 변동이 없습니다.</div>
       )}

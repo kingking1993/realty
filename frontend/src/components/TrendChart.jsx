@@ -6,19 +6,29 @@ import {
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Legend, Tooltip)
 
-const INK = '#000000'
-const INK2 = '#525252'
-const GRID = '#e5e5e5'
-// 색 대신 선 패턴으로 시리즈 구분 (매매=실선, 전세=파선, 월세=점선)
-const DASHES = [[], [7, 4], [2, 4]]
-const WIDTHS = [2.5, 2, 2]
+// MD3 토널 팔레트 — 매매=primary, 전세=tertiary, 월세=teal(보조 하모니)
+const SERIES_COLORS = ['#6750A4', '#7D5260', '#006A6A']
+const ON_SURFACE_VARIANT = '#49454F'
+const GRID = '#E7E0EC'
+
+export const CHART_DEFAULTS = {
+  tooltip: {
+    backgroundColor: '#1C1B1F',
+    titleColor: '#F3EDF7',
+    bodyColor: '#F3EDF7',
+    cornerRadius: 12,
+    borderWidth: 0,
+    padding: 12,
+  },
+}
 
 export default function TrendChart({ chart }) {
   const canvasRef = useRef(null)
 
   useEffect(() => {
     if (!canvasRef.current || !chart) return
-    Chart.defaults.font.family = "'JetBrains Mono', monospace"
+    Chart.defaults.font.family =
+      "Roboto, 'Pretendard Variable', Pretendard, sans-serif"
 
     const instance = new Chart(canvasRef.current, {
       type: 'line',
@@ -27,15 +37,14 @@ export default function TrendChart({ chart }) {
         datasets: chart.series.map((s, i) => ({
           label: s.label,
           data: s.data,
-          borderColor: INK,
-          backgroundColor: INK,
-          borderWidth: WIDTHS[i],
-          borderDash: DASHES[i],
-          pointRadius: chart.labels.length > 30 ? 0 : 2.5,
+          borderColor: SERIES_COLORS[i],
+          backgroundColor: SERIES_COLORS[i],
+          borderWidth: 2.5,
+          pointRadius: chart.labels.length > 30 ? 0 : 3,
           pointHoverRadius: 5,
-          pointBackgroundColor: INK,
           spanGaps: true,
-          tension: 0,
+          tension: 0.35,
+          borderCapStyle: 'round',
         })),
       },
       options: {
@@ -45,23 +54,19 @@ export default function TrendChart({ chart }) {
         plugins: {
           legend: {
             labels: {
-              color: INK, usePointStyle: false, boxWidth: 28, boxHeight: 0,
-              font: { size: 11 },
+              color: ON_SURFACE_VARIANT, usePointStyle: true,
+              pointStyle: 'circle', boxWidth: 8, boxHeight: 8,
+              font: { size: 12, weight: 500 },
             },
           },
-          tooltip: {
-            mode: 'index', intersect: false,
-            backgroundColor: INK, titleColor: '#fff', bodyColor: '#fff',
-            cornerRadius: 0, borderWidth: 0, padding: 10,
-            titleFont: { family: "'JetBrains Mono', monospace" },
-            bodyFont: { family: "'JetBrains Mono', monospace" },
-          },
+          tooltip: { mode: 'index', intersect: false, ...CHART_DEFAULTS.tooltip },
         },
         scales: {
-          x: { ticks: { color: INK2, maxTicksLimit: 12, font: { size: 10 } },
-               grid: { color: GRID, drawTicks: false }, border: { color: INK } },
-          y: { beginAtZero: true, ticks: { color: INK2, precision: 0, font: { size: 10 } },
-               grid: { color: GRID, drawTicks: false }, border: { color: INK } },
+          x: { ticks: { color: ON_SURFACE_VARIANT, maxTicksLimit: 12, font: { size: 11 } },
+               grid: { color: GRID, drawTicks: false }, border: { display: false } },
+          y: { beginAtZero: true,
+               ticks: { color: ON_SURFACE_VARIANT, precision: 0, font: { size: 11 } },
+               grid: { color: GRID, drawTicks: false }, border: { display: false } },
         },
       },
     })

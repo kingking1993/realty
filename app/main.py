@@ -7,7 +7,7 @@ import os
 import secrets
 import threading
 from contextlib import asynccontextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -285,6 +285,74 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
             "chart": chart, "listings": listings, "events": events,
             "transactions": transactions, "trade_type": trade_type,
         }
+
+
+@app.get("/api/drops")
+def api_drops(days: int = 30):
+    """내려간 매물 추적 — 가격 인하 + 소멸(실거래 매칭 포함)."""
+    days = max(1, min(days, 365))
+    since = datetime.now() - timedelta(days=days)
+    with session_scope() as s:
+        # 가격 인하 이벤트
+        cuts = []
+        for ev, l, cx in s.execute(
+            select(ListingEvent, Listing, Complex)
+            .join(Listing, ListingEvent.listing_id == Listing.id)
+            .join(Complex, Listing.complex_id == Complex.id)
+            .where(
+                ListingEvent.event == "PRICE_CHANGED",
+                ListingEvent.occurred_at >= since,
+                ListingEvent.new_price < ListingEvent.old_price,
+            )
+            .order_by(desc(ListingEvent.occurred_at)).limit(100)
+        ).all():
+            cut = (ev.old_price or 0) - (ev.new_price or 0)
+            cuts.append({
+                **_event_json(ev, l),
+                "complex": {"id": cx.id, "name": cx.name},
+                "status": l.status,
+                "cut": cut,
+                "cut_pct": round(cut / ev.old_price * 100, 1) if ev.old_price else None,
+            })
+
+        # 소멸 이벤트 (+ 실거래 매칭 추정)
+        removed_rows = s.execute(
+            select(ListingEvent, Listing, Complex)
+            .join(Listing, ListingEvent.listing_id == Listing.id)
+            .join(Complex, Listing.complex_id == Complex.id)
+            .where(ListingEvent.event == "REMOVED", ListingEvent.occurred_at >= since)
+            .order_by(desc(ListingEvent.occurred_at)).limit(100)
+        ).all()
+        listing_ids = [l.id for _, l, _ in removed_rows]
+        matches = {
+            m.listing_id: m for m in s.scalars(
+                select(Match).where(Match.listing_id.in_(listing_ids))
+            )
+        } if listing_ids else {}
+        txn_ids = [m.transaction_id for m in matches.values()]
+        txns = {
+            t.id: t for t in s.scalars(
+                select(Transaction).where(Transaction.id.in_(txn_ids))
+            )
+        } if txn_ids else {}
+
+        removed = []
+        for ev, l, cx in removed_rows:
+            row = {
+                **_event_json(ev, l),
+                "complex": {"id": cx.id, "name": cx.name},
+            }
+            m = matches.get(l.id)
+            if m and m.transaction_id in txns:
+                t = txns[m.transaction_id]
+                row["match"] = {
+                    "confidence": m.confidence,
+                    "deal_date": t.deal_date.isoformat(),
+                    "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+                }
+            removed.append(row)
+
+        return {"days": days, "cuts": cuts, "removed": removed}
 
 
 @app.get("/api/feed")

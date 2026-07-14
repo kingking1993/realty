@@ -4,6 +4,7 @@ import { collect } from './api.js'
 import Dashboard from './pages/Dashboard.jsx'
 import ComplexDetail from './pages/ComplexDetail.jsx'
 import Feed from './pages/Feed.jsx'
+import Drops from './pages/Drops.jsx'
 
 function CollectButton({ job, label }) {
   const [state, setState] = useState('idle') // idle | running | done | fail
@@ -34,6 +35,7 @@ export default function App() {
       <nav className="topnav">
         <NavLink to="/" className="brand">REALTY</NavLink>
         <NavLink to="/" end>대시보드</NavLink>
+        <NavLink to="/drops">내려간 매물</NavLink>
         <NavLink to="/feed">뉴스·카페</NavLink>
         <span className="spacer" />
         <CollectButton job="listings" label="매물 수집" />
@@ -44,6 +46,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/complex/:id" element={<ComplexDetail />} />
+          <Route path="/drops" element={<Drops />} />
           <Route path="/feed" element={<Feed />} />
         </Routes>
       </main>
