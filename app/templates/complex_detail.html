@@ -17,15 +17,14 @@
 {% if listings %}
 <div class="table-wrap">
 <table>
-  <tr><th>동</th><th>층</th><th class="num">전용(㎡)</th><th class="num">가격(호가)</th><th>설명</th><th class="num">등록</th></tr>
+  <tr><th>동</th><th>층</th><th class="num">가격(호가)</th><th>설명</th><th class="num">등록</th></tr>
   {% for l in listings %}
   <tr>
     <td>{{ l.dong or "-" }}</td>
     <td>{{ l.floor_info or "-" }}</td>
-    <td class="num">{{ "%.2f"|format(l.area_exclusive) }}</td>
     <td class="num">{{ l.price|price(l.price_monthly) }}</td>
-    <td class="muted">{{ l.description[:40] }}</td>
-    <td class="num muted">{{ l.first_seen.strftime("%m-%d") }}</td>
+    <td class="muted desc">{{ l.description[:40] }}</td>
+    <td class="num muted">{{ l.first_seen|d }}</td>
   </tr>
   {% endfor %}
 </table>
@@ -37,14 +36,13 @@
 {% if events %}
 <div class="table-wrap">
 <table>
-  <tr><th>시각</th><th>변동</th><th>유형</th><th>동/층</th><th class="num">면적(㎡)</th><th class="num">가격</th><th>실거래 매칭</th></tr>
+  <tr><th>시각</th><th>변동</th><th>유형</th><th>동/층</th><th class="num">가격</th><th>실거래 매칭</th></tr>
   {% for ev, l in events %}
   <tr>
-    <td class="muted">{{ ev.occurred_at.strftime("%m-%d %H:%M") }}</td>
+    <td class="muted">{{ ev.occurred_at|d }}</td>
     <td><span class="tag {{ ev.event }}">{{ {"NEW": "신규", "PRICE_CHANGED": "가격변동", "REMOVED": "소멸"}[ev.event] }}</span></td>
     <td>{{ l.trade_type }}</td>
     <td>{{ l.dong or "-" }} {{ l.floor_info }}</td>
-    <td class="num">{{ "%.1f"|format(l.area_exclusive) }}</td>
     <td class="num">
       {% if ev.event == "PRICE_CHANGED" %}{{ ev.old_price|price }} → {{ ev.new_price|price }}
       {% else %}{{ (ev.new_price or ev.old_price or l.price)|price }}{% endif %}
@@ -55,7 +53,7 @@
         {% set t = txns_by_id[m.transaction_id] %}
         <span class="match-note">
           <span class="tag {{ m.confidence }}">{{ m.confidence }}</span>
-          {{ t.deal_date }} {{ t.price|price }}에 거래 추정
+          {{ t.deal_date|d }} {{ t.price|price }}에 거래 추정
           ({{ t.floor }}층{% if t.apt_dong %}, {{ t.apt_dong }}동{% endif %})
         </span>
       {% elif ev.event == "REMOVED" and l.trade_type == "매매" %}
@@ -72,11 +70,10 @@
 {% if transactions %}
 <div class="table-wrap">
 <table>
-  <tr><th>계약일</th><th class="num">전용(㎡)</th><th>동</th><th class="num">층</th><th class="num">거래가</th><th>비고</th></tr>
+  <tr><th>계약일</th><th>동</th><th class="num">층</th><th class="num">거래가</th><th>비고</th></tr>
   {% for t in transactions %}
   <tr>
-    <td>{{ t.deal_date }}</td>
-    <td class="num">{{ "%.2f"|format(t.area_exclusive) }}</td>
+    <td>{{ t.deal_date|d }}</td>
     <td>{{ t.apt_dong or "-" }}</td>
     <td class="num">{{ t.floor }}</td>
     <td class="num">{{ t.price|price }}</td>

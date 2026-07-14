@@ -23,7 +23,7 @@
     {% if a.description %}<div class="desc">{{ a.description }}</div>{% endif %}
     <div class="meta">
       키워드: {{ a.keyword }} ·
-      {% if a.pub_date %}{{ a.pub_date.strftime("%Y-%m-%d %H:%M") }}{% else %}수집 {{ a.fetched_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+      {% if a.pub_date %}{{ a.pub_date.strftime("%Y-%m-%d") }}{% else %}수집 {{ a.fetched_at.strftime("%Y-%m-%d") }}{% endif %}
     </div>
   </div>
   {% endfor %}

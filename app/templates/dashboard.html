@@ -40,15 +40,14 @@
 {% if events %}
 <div class="table-wrap">
 <table>
-  <tr><th>시각</th><th>단지</th><th>변동</th><th>유형</th><th>동/층</th><th class="num">면적(㎡)</th><th class="num">가격</th></tr>
+  <tr><th>시각</th><th>단지</th><th>변동</th><th>유형</th><th>동/층</th><th class="num">가격</th></tr>
   {% for ev, l, cx in events %}
   <tr>
-    <td class="muted">{{ ev.occurred_at.strftime("%m-%d %H:%M") }}</td>
+    <td class="muted">{{ ev.occurred_at|d }}</td>
     <td><a href="/complex/{{ cx.id }}">{{ cx.name }}</a></td>
     <td><span class="tag {{ ev.event }}">{{ {"NEW": "신규", "PRICE_CHANGED": "가격변동", "REMOVED": "소멸"}[ev.event] }}</span></td>
     <td>{{ l.trade_type }}</td>
     <td>{{ l.dong or "-" }} {{ l.floor_info }}</td>
-    <td class="num">{{ "%.1f"|format(l.area_exclusive) }}</td>
     <td class="num">
       {% if ev.event == "PRICE_CHANGED" %}{{ ev.old_price|price }} → {{ ev.new_price|price }}
       {% else %}{{ (ev.new_price or ev.old_price or l.price)|price }}{% endif %}
@@ -67,7 +66,7 @@
     <a class="title" href="{{ a.link }}" target="_blank" rel="noopener">{{ a.title }}</a>
     <div class="meta">
       {{ a.keyword }} ·
-      {% if a.pub_date %}{{ a.pub_date.strftime("%Y-%m-%d %H:%M") }}{% else %}수집 {{ a.fetched_at.strftime("%m-%d %H:%M") }}{% endif %}
+      {% if a.pub_date %}{{ a.pub_date.strftime("%Y-%m-%d") }}{% else %}수집 {{ a.fetched_at|d }}{% endif %}
     </div>
   </div>
   {% endfor %}

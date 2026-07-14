@@ -98,19 +98,22 @@ async def basic_auth(request: Request, call_next):
 
 
 def _fmt_price(price: int, monthly: int = 0) -> str:
-    """만원 → '22억 5,000' 표기."""
+    """만원 → '12.5억' 표기 (한 줄 고정용 축약형)."""
     if price <= 0:
         return "-"
-    eok, rest = divmod(price, 10000)
-    s = f"{eok}억" if eok else ""
-    if rest:
-        s += f" {rest:,}" if s else f"{rest:,}"
+    s = f"{price / 10000:g}억" if price >= 10000 else f"{price:,}"
     if monthly:
-        s += f" / {monthly:,}"
-    return s.strip()
+        s += f"/{monthly:,}"
+    return s
+
+
+def _fmt_date_short(value) -> str:
+    """date/datetime → '7/13' 표기."""
+    return f"{value.month}/{value.day}" if value else "-"
 
 
 templates.env.filters["price"] = _fmt_price
+templates.env.filters["d"] = _fmt_date_short
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -146,7 +149,9 @@ def dashboard(request: Request):
         ).all()
 
         articles = list(s.scalars(
-            select(Article).order_by(desc(Article.fetched_at)).limit(10)
+            select(Article)
+            .order_by(desc(Article.pub_date).nulls_last(), desc(Article.fetched_at))
+            .limit(10)
         ))
 
         logs = {}
@@ -225,7 +230,9 @@ def complex_detail(request: Request, complex_id: int, trade_type: str = "매매"
 @app.get("/feed", response_class=HTMLResponse)
 def feed(request: Request, source: str = "", complex_id: int = 0):
     with session_scope() as s:
-        q = select(Article).order_by(desc(Article.pub_date), desc(Article.fetched_at)).limit(200)
+        q = select(Article).order_by(
+            desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
+        ).limit(200)
         if source in ("news", "cafe"):
             q = q.where(Article.source == source)
         if complex_id:
