@@ -1,6 +1,6 @@
 /* ============================================================
-   Realty — Minimalist Monochrome
-   순수 흑백 · 세리프 타이포 · 선 기반 구조 · radius 0 · 무그림자
+   Realty — Minimalist Monochrome (Pretendard)
+   순수 흑백 · 선 기반 구조 · radius 0 · 무그림자
    ============================================================ */
 
 :root {
@@ -11,8 +11,7 @@
   --border: #000000;
   --border-light: #e5e5e5;
 
-  --font-display: "Playfair Display", "Noto Serif KR", Georgia, serif;
-  --font-body: "Source Serif 4", "Noto Serif KR", Georgia, serif;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 }
 
@@ -24,7 +23,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.6;
   position: relative;
@@ -44,7 +43,7 @@ body::before {
   opacity: 0.015;
 }
 
-body > * { position: relative; z-index: 1; }
+#root { position: relative; z-index: 1; }
 
 /* ---- Skip link (접근성) ---- */
 .skip-link {
@@ -60,9 +59,7 @@ body > * { position: relative; z-index: 1; }
   letter-spacing: 0.1em;
   z-index: 100;
 }
-.skip-link:focus {
-  left: 0;
-}
+.skip-link:focus { left: 0; }
 
 /* ============================================================
    Masthead / Navigation
@@ -80,10 +77,9 @@ body > * { position: relative; z-index: 1; }
   flex-wrap: wrap;
 }
 .topnav .brand {
-  font-family: var(--font-display);
   font-weight: 900;
-  font-size: 28px;
-  letter-spacing: -0.03em;
+  font-size: 26px;
+  letter-spacing: -0.02em;
   color: var(--foreground);
   text-decoration: none;
   line-height: 1;
@@ -100,7 +96,8 @@ body > * { position: relative; z-index: 1; }
   transition: color 100ms, border-color 100ms;
 }
 .topnav a:not(.brand):hover,
-.topnav a:not(.brand):focus-visible {
+.topnav a:not(.brand):focus-visible,
+.topnav a:not(.brand).active {
   color: var(--foreground);
   border-bottom-color: var(--foreground);
   outline: none;
@@ -144,14 +141,12 @@ main {
 
 /* ---- Typography ---- */
 h1 {
-  font-family: var(--font-display);
   font-weight: 900;
   font-size: clamp(3rem, 9vw, 5.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  line-height: 0.98;
+  letter-spacing: -0.045em;
   margin: 0 0 8px;
 }
-/* h1 아래 데코 rule + 정사각형 punctuation */
 .page-head {
   border-bottom: 8px solid var(--foreground);
   padding-bottom: 20px;
@@ -175,12 +170,13 @@ h1 {
   background: var(--foreground);
   display: inline-block;
 }
+.page-head .kicker a { color: inherit; text-decoration: none; }
+.page-head .kicker a:hover { color: var(--foreground); }
 
 h2 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 2rem;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  font-size: 1.8rem;
+  letter-spacing: -0.03em;
   margin: 72px 0 20px;
   padding-bottom: 12px;
   border-bottom: 4px solid var(--foreground);
@@ -223,10 +219,9 @@ h2::before {
   color: var(--background);
 }
 .card a.name {
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: inherit;
   text-decoration: none;
   display: inline-block;
@@ -270,11 +265,11 @@ h2::before {
 }
 .card:hover .countrow .item .label { color: var(--border-light); }
 .countrow .item .value {
-  font-family: var(--font-display);
-  font-size: 2.4rem;
+  font-size: 2.3rem;
   font-weight: 900;
   line-height: 1.1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* delta — 색 대신 글리프/무게로 표현 */
@@ -321,14 +316,14 @@ th {
   border-bottom: 2px solid var(--foreground);
   background: var(--background);
 }
-tbody tr:hover, tr:hover { background: var(--muted); }
+tbody tr:hover { background: var(--muted); }
 tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; }
 td.desc {
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--font-body);
+  font-family: var(--font-sans);
   color: var(--muted-fg);
 }
 table a {
@@ -363,8 +358,6 @@ table a:hover, table a:focus-visible {
   background: var(--foreground);
   color: var(--background);
 }
-/* 중립(가격변동/카페/중간) = 외곽선 */
-.tag.PRICE_CHANGED, .tag.cafe, .tag.MEDIUM { }
 /* 소멸/블라인드/낮은신뢰 = 점선 외곽선(약한 강조) */
 .tag.REMOVED, .tag.blind, .tag.LOW {
   border-style: dashed;
@@ -383,29 +376,33 @@ table a:hover, table a:focus-visible {
   width: fit-content;
   max-width: 100%;
 }
-.filters a {
+.filters a, .filters button {
   font-family: var(--font-mono);
+  font-size: 11px;
   padding: 8px 16px;
   color: var(--muted-fg);
+  background: var(--background);
   text-decoration: none;
-  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  border: none;
   border-right: 2px solid var(--foreground);
+  cursor: pointer;
   transition: background-color 100ms, color 100ms;
 }
-.filters a:last-child { border-right: none; }
-.filters a:hover, .filters a:focus-visible {
+.filters a:last-child, .filters button:last-child { border-right: none; }
+.filters a:hover, .filters a:focus-visible,
+.filters button:hover, .filters button:focus-visible {
   background: var(--muted);
   color: var(--foreground);
   outline: none;
 }
-.filters a.active {
+.filters a.active, .filters button.active {
   background: var(--foreground);
   color: var(--background);
 }
-/* feed 페이지: 여러 필터줄 사이 간격 */
 .filters + .filters { margin-top: -12px; }
+.filter-row { display: flex; gap: 16px; flex-wrap: wrap; }
 
 /* ============================================================
    Feed items — 에디토리얼 리스트
@@ -422,11 +419,10 @@ table a:hover, table a:focus-visible {
 .feeditem .tag { grid-row: 1; }
 .feeditem a.title {
   grid-column: 2;
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
   color: var(--foreground);
   text-decoration: none;
   border-bottom: 2px solid transparent;
@@ -451,7 +447,7 @@ table a:hover, table a:focus-visible {
 }
 
 /* “전체 보기” 링크 */
-main > p a, .more-link {
+.more-link {
   font-family: var(--font-mono);
   font-size: 12px;
   text-transform: uppercase;
@@ -460,7 +456,7 @@ main > p a, .more-link {
   text-decoration: none;
   border-bottom: 2px solid var(--foreground);
 }
-main > p a:hover { background: var(--foreground); color: var(--background); }
+.more-link:hover { background: var(--foreground); color: var(--background); }
 
 /* ============================================================
    Chart box
@@ -500,8 +496,6 @@ main > p a:hover { background: var(--foreground); color: var(--background); }
 
 .empty {
   color: var(--muted-fg);
-  font-family: var(--font-body);
-  font-style: italic;
   padding: 48px 0;
   text-align: center;
   border-top: 1px solid var(--border-light);
@@ -509,15 +503,11 @@ main > p a:hover { background: var(--foreground); color: var(--background); }
 }
 .empty code {
   font-family: var(--font-mono);
-  font-style: normal;
   background: var(--muted);
   padding: 2px 6px;
 }
 
-code {
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-}
+code { font-family: var(--font-mono); font-size: 0.85em; }
 
 ::selection { background: var(--foreground); color: var(--background); }
 
@@ -527,10 +517,10 @@ code {
 @media (max-width: 760px) {
   main { padding: 36px 18px 72px; }
   .topnav { padding: 16px 18px 12px; gap: 16px; }
-  .topnav .brand { font-size: 22px; }
-  h2 { font-size: 1.5rem; margin: 52px 0 16px; }
+  .topnav .brand { font-size: 21px; }
+  h2 { font-size: 1.4rem; margin: 52px 0 16px; }
   .cards { grid-template-columns: 1fr; }
-  .countrow .item .value { font-size: 2rem; }
+  .countrow .item .value { font-size: 1.9rem; }
   th, td { padding: 9px 10px; }
   table { font-size: 12px; }
   td.desc { max-width: 130px; }
@@ -540,5 +530,5 @@ code {
 @media (max-width: 480px) {
   h1 { font-size: 2.6rem; }
   .filters { width: 100%; }
-  .filters a { flex: 1; text-align: center; padding: 8px 6px; }
+  .filters a, .filters button { flex: 1; text-align: center; padding: 8px 6px; }
 }
