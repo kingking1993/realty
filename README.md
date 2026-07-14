@@ -103,5 +103,23 @@ PC를 꺼도 항상 접속되게 하려면 (모두 무료):
 - 15분 무접속 시 잠들었다가 접속하면 ~1분 걸려 깨어남 (첫 화면만 느림)
 - 무료 인스턴스 시간은 계정당 월 750시간 — 다른 무료 서비스와 공유되므로
   항상 깨워두는 keepalive는 권장하지 않음
-- 네이버 부동산이 클라우드 IP를 차단하면 매물 수집만 실패할 수 있음
-  (실거래·뉴스는 영향 없음) — 이 경우 매물 수집만 집 PC에서 돌리는 방법이 있음
+
+### 매물 수집은 집 PC에서 (하이브리드)
+
+**네이버 부동산은 클라우드(데이터센터) IP를 차단**하므로 매물 수집만 집 PC가 담당한다
+(실거래·뉴스는 클라우드에서 정상). 로컬 `.env`에 같은 `DATABASE_URL`을 넣으면
+PC 수집 결과가 곧바로 클라우드 화면에 반영된다.
+
+Windows 작업 스케줄러에 "Realty-listings" 작업 등록 (매일 10:00/18:00, 절전 깨우기):
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "$PWD\.venv\Scripts\python.exe" `
+  -Argument "scripts\collect_now.py --job listings" -WorkingDirectory "$PWD"
+$t1 = New-ScheduledTaskTrigger -Daily -At 10:00
+$t2 = New-ScheduledTaskTrigger -Daily -At 18:00
+$settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable `
+  -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+Register-ScheduledTask -TaskName "Realty-listings" -Action $action -Trigger $t1,$t2 -Settings $settings
+```
+
+PC는 "시스템 종료" 대신 "절전"으로 두면 수집 시각에 스스로 깨어난다.
