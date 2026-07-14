@@ -58,11 +58,22 @@
 </div>
 {% else %}<div class="empty">아직 수집된 매물 변동이 없습니다.</div>{% endif %}
 
-<h2>최신 뉴스·카페 글</h2>
+<h2>최신 소식</h2>
+<div class="filters">
+  <a href="/?topic={{ topic }}#news" class="{{ 'active' if not src else '' }}">전체</a>
+  <a href="/?src=news&topic={{ topic }}#news" class="{{ 'active' if src == 'news' else '' }}">뉴스</a>
+  <a href="/?src=cafe&topic={{ topic }}#news" class="{{ 'active' if src == 'cafe' else '' }}">카페</a>
+  <a href="/?src=blind&topic={{ topic }}#news" class="{{ 'active' if src == 'blind' else '' }}">Blind</a>
+  <span style="width:8px"></span>
+  <a href="/?src={{ src }}#news" class="{{ 'active' if not topic else '' }}">전체</a>
+  <a href="/?src={{ src }}&topic=complex#news" class="{{ 'active' if topic == 'complex' else '' }}">{{ topic_labels.complex }}</a>
+  <a href="/?src={{ src }}&topic=area#news" class="{{ 'active' if topic == 'area' else '' }}">{{ topic_labels.area }}</a>
+</div>
+<div id="news"></div>
 {% if articles %}
   {% for a in articles %}
   <div class="feeditem">
-    <span class="tag {{ a.source }}">{{ "뉴스" if a.source == "news" else "카페" }}</span>
+    <span class="tag {{ a.source }}">{{ {"news": "뉴스", "cafe": "카페", "blind": "Blind"}[a.source] }}</span>
     <a class="title" href="{{ a.link }}" target="_blank" rel="noopener">{{ a.title }}</a>
     <div class="meta">
       {{ a.keyword }} ·
@@ -70,8 +81,8 @@
     </div>
   </div>
   {% endfor %}
-  <p><a href="/feed">전체 보기 →</a></p>
-{% else %}<div class="empty">아직 수집된 글이 없습니다.</div>{% endif %}
+  <p><a href="/feed?source={{ src }}&topic={{ topic }}">전체 보기 →</a></p>
+{% else %}<div class="empty">이 조건의 글이 아직 없습니다.</div>{% endif %}
 
 <div class="joblog">
   {% for job, log in logs.items() %}

@@ -126,9 +126,10 @@ class Article(Base):
     __tablename__ = "articles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source: Mapped[str] = mapped_column(String, index=True)  # news/cafe
+    source: Mapped[str] = mapped_column(String, index=True)  # news/cafe/blind
     complex_id: Mapped[int] = mapped_column(ForeignKey("complexes.id"), index=True)
     keyword: Mapped[str] = mapped_column(String, default="")
+    topic: Mapped[str] = mapped_column(String, default="complex", index=True)  # complex(단지)/area(지역)
     title: Mapped[str] = mapped_column(String)
     link: Mapped[str] = mapped_column(String, unique=True)
     description: Mapped[str] = mapped_column(Text, default="")

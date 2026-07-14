@@ -112,6 +112,7 @@ td.desc { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .tag.REMOVED { color: var(--up); }
 .tag.news { color: var(--series-1); }
 .tag.cafe { color: var(--series-2); }
+.tag.blind { color: var(--series-3); }
 .tag.HIGH { color: var(--down); }
 .tag.MEDIUM { color: var(--series-3); }
 .tag.LOW { color: var(--muted); }

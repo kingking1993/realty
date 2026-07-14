@@ -26,7 +26,9 @@ class ComplexConfig:
     lawd_cd: str
     umd_nm: str = ""
     apt_name_molit: str = ""
-    keywords: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)  # 단지 키워드 (topic=complex)
+    area_keywords: list[str] = field(default_factory=list)  # 지역 키워드 (topic=area)
+    area_label: str = "지역"  # 지역 탭 표시명 (예: 강서구)
 
 
 def load_complexes(path: Path | None = None) -> list[ComplexConfig]:
@@ -44,6 +46,8 @@ def load_complexes(path: Path | None = None) -> list[ComplexConfig]:
                 umd_nm=str(item.get("umd_nm") or ""),
                 apt_name_molit=str(item.get("apt_name_molit") or ""),
                 keywords=[str(k) for k in item.get("keywords") or []],
+                area_keywords=[str(k) for k in item.get("area_keywords") or []],
+                area_label=str(item.get("area_label") or "지역"),
             )
         )
     return result

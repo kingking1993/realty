@@ -185,7 +185,7 @@ def upsert_transactions(session: Session, complex_obj: Complex, trades: list[dic
 
 
 def upsert_articles(session: Session, complex_id: int, items: list[dict],
-                    now: datetime | None = None) -> int:
+                    topic: str = "complex", now: datetime | None = None) -> int:
     """뉴스/카페 글 저장 (link 기준 중복 제거). 신규 건수 반환."""
     now = now or datetime.now()
     added = 0
@@ -200,6 +200,7 @@ def upsert_articles(session: Session, complex_id: int, items: list[dict],
             source=item["source"],
             complex_id=complex_id,
             keyword=item.get("keyword", ""),
+            topic=topic,
             title=item["title"],
             link=item["link"],
             description=item.get("description", ""),

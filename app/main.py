@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc, select
 
+from app.config import load_complexes
 from app.db import init_db, session_scope
 from app.models import (
     Article,
@@ -116,8 +117,16 @@ templates.env.filters["price"] = _fmt_price
 templates.env.filters["d"] = _fmt_date_short
 
 
+def _topic_labels() -> dict[str, str]:
+    cfgs = load_complexes()
+    return {
+        "complex": cfgs[0].name if cfgs else "단지",
+        "area": cfgs[0].area_label if cfgs else "지역",
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request):
+def dashboard(request: Request, src: str = "", topic: str = ""):
     with session_scope() as s:
         complexes = list(s.scalars(select(Complex).order_by(Complex.name)))
         cards = []
@@ -148,11 +157,14 @@ def dashboard(request: Request):
             .order_by(desc(ListingEvent.occurred_at)).limit(15)
         ).all()
 
-        articles = list(s.scalars(
-            select(Article)
-            .order_by(desc(Article.pub_date).nulls_last(), desc(Article.fetched_at))
-            .limit(10)
-        ))
+        aq = select(Article).order_by(
+            desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
+        ).limit(10)
+        if src in ("news", "cafe", "blind"):
+            aq = aq.where(Article.source == src)
+        if topic in ("complex", "area"):
+            aq = aq.where(Article.topic == topic)
+        articles = list(s.scalars(aq))
 
         logs = {}
         for job in JOBS:
@@ -163,6 +175,7 @@ def dashboard(request: Request):
 
         return templates.TemplateResponse(request, "dashboard.html", {
             "cards": cards, "events": events, "articles": articles, "logs": logs,
+            "src": src, "topic": topic, "topic_labels": _topic_labels(),
         })
 
 
@@ -228,20 +241,23 @@ def complex_detail(request: Request, complex_id: int, trade_type: str = "매매"
 
 
 @app.get("/feed", response_class=HTMLResponse)
-def feed(request: Request, source: str = "", complex_id: int = 0):
+def feed(request: Request, source: str = "", topic: str = "", complex_id: int = 0):
     with session_scope() as s:
         q = select(Article).order_by(
             desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
         ).limit(200)
-        if source in ("news", "cafe"):
+        if source in ("news", "cafe", "blind"):
             q = q.where(Article.source == source)
+        if topic in ("complex", "area"):
+            q = q.where(Article.topic == topic)
         if complex_id:
             q = q.where(Article.complex_id == complex_id)
         articles = list(s.scalars(q))
         complexes = list(s.scalars(select(Complex).order_by(Complex.name)))
         return templates.TemplateResponse(request, "feed.html", {
             "articles": articles, "complexes": complexes,
-            "source": source, "complex_id": complex_id,
+            "source": source, "topic": topic, "complex_id": complex_id,
+            "topic_labels": _topic_labels(),
         })
 
 

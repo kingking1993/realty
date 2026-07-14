@@ -100,6 +100,26 @@ def test_article_relevance_filter():
         {"title": "[산업소식] 효성 지원", "description": "등촌1복지관… 부영그룹 회장…"},
         "등촌부영",
     )
+    # tokens 모드: 단어들이 떨어져 있어도 모두 등장하면 통과
+    assert _is_relevant(
+        {"title": "강서구 아파트값 상승, 부동산 시장 들썩", "description": ""},
+        "강서구 부동산", mode="tokens",
+    )
+    assert not _is_relevant(
+        {"title": "강서구 맛집 추천", "description": ""}, "강서구 부동산", mode="tokens",
+    )
+
+
+def test_blind_parse():
+    from app.collectors.blind import parse_posts
+
+    html = '''<div><a href="/kr/post/%EA%B0%95%EC%84%9C-abc123" class="tit">
+        <b>강서구</b> 아파트 어때?</a>
+        <a href="/kr/post/%EA%B0%95%EC%84%9C-abc123">강서구 아파트 어때?</a></div>'''
+    posts = parse_posts(html)
+    assert len(posts) == 1  # 중복 링크 제거
+    assert posts[0]["title"] == "강서구 아파트 어때?"
+    assert posts[0]["link"].startswith("https://www.teamblind.com/kr/post/")
 
 
 def test_daily_counts(session, complex_obj):

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from app.collectors import molit, naver_land, naver_search
+from app.collectors import blind, molit, naver_land, naver_search
 from app.config import load_complexes
 from app.db import session_scope
 from app.models import CollectionLog
@@ -13,13 +13,17 @@ from app.services import ingest, matcher
 logger = logging.getLogger(__name__)
 
 
-def _is_relevant(item: dict, keyword: str) -> bool:
-    """검색 키워드가 (공백 무시하고) 제목+본문에 붙어서 등장하는 기사만 통과.
+def _is_relevant(item: dict, keyword: str, mode: str = "strict") -> bool:
+    """검색 결과가 키워드와 실제로 관련 있는지 필터.
 
-    네이버 검색은 '등촌부영'으로 검색해도 '등촌'과 '부영그룹'이 따로 나오는
-    기사까지 돌려주므로, 단지와 무관한 기사를 거른다.
+    - strict: 키워드가 (공백 무시하고) 통째로 등장해야 함 — 단지 키워드용.
+      '등촌부영' 검색에 '등촌'과 '부영그룹'이 따로 나오는 기사를 거른다.
+    - tokens: 키워드의 각 단어가 모두 등장하면 통과 — 지역 키워드용.
+      '강서구 부동산'이 "강서구 아파트값·부동산 시장…"처럼 떨어져 나와도 잡는다.
     """
     text = (item.get("title", "") + " " + item.get("description", "")).replace(" ", "")
+    if mode == "tokens":
+        return all(tok in text for tok in keyword.split())
     return keyword.replace(" ", "") in text
 
 
@@ -99,7 +103,11 @@ def run_transactions_job() -> str:
 
 
 def run_articles_job() -> str:
-    """단지별 키워드로 뉴스/카페 글 수집."""
+    """단지별 키워드로 뉴스/카페/블라인드 글 수집.
+
+    키워드 그룹: keywords → topic=complex(단지, strict 필터),
+    area_keywords → topic=area(지역, tokens 필터).
+    """
     started = datetime.now()
     lines: list[str] = []
     all_ok = True
@@ -108,19 +116,33 @@ def run_articles_job() -> str:
         cfg_by_no = {c.naver_complex_no: c for c in load_complexes()}
         for cx in complexes:
             cfg = cfg_by_no.get(cx.naver_complex_no)
-            keywords = cfg.keywords if cfg else [cx.name]
-            added_news = added_cafe = 0
-            for kw in keywords or [cx.name]:
-                try:
-                    news = [a for a in naver_search.search_news(kw) if _is_relevant(a, kw)]
-                    cafe = [a for a in naver_search.search_cafe(kw) if _is_relevant(a, kw)]
-                    added_news += ingest.upsert_articles(session, cx.id, news)
-                    added_cafe += ingest.upsert_articles(session, cx.id, cafe)
-                except naver_search.NaverSearchError as e:
-                    all_ok = False
-                    lines.append(f"{cx.name}/{kw}: 검색 실패 — {e}")
-                    logger.error("기사 수집 실패 (%s/%s): %s", cx.name, kw, e)
-            lines.append(f"{cx.name}: 신규 뉴스 {added_news}건, 카페 {added_cafe}건")
+            groups = [
+                ("complex", "strict", (cfg.keywords if cfg else None) or [cx.name]),
+                ("area", "tokens", cfg.area_keywords if cfg else []),
+            ]
+            added = {"news": 0, "cafe": 0, "blind": 0}
+            for topic, mode, keywords in groups:
+                for kw in keywords:
+                    try:
+                        news = [a for a in naver_search.search_news(kw) if _is_relevant(a, kw, mode)]
+                        cafe = [a for a in naver_search.search_cafe(kw) if _is_relevant(a, kw, mode)]
+                        added["news"] += ingest.upsert_articles(session, cx.id, news, topic=topic)
+                        added["cafe"] += ingest.upsert_articles(session, cx.id, cafe, topic=topic)
+                    except naver_search.NaverSearchError as e:
+                        all_ok = False
+                        lines.append(f"{cx.name}/{kw}: 검색 실패 — {e}")
+                        logger.error("기사 수집 실패 (%s/%s): %s", cx.name, kw, e)
+                    try:
+                        posts = [p for p in blind.search_blind(kw) if _is_relevant(p, kw, mode)]
+                        added["blind"] += ingest.upsert_articles(session, cx.id, posts, topic=topic)
+                    except blind.BlindError as e:
+                        # Blind는 부가 소스 — 실패해도 잡 전체를 실패로 치지 않음
+                        lines.append(f"{cx.name}/{kw}: Blind 실패 — {e}")
+                        logger.warning("Blind 수집 실패 (%s/%s): %s", cx.name, kw, e)
+            lines.append(
+                f"{cx.name}: 신규 뉴스 {added['news']}건, 카페 {added['cafe']}건, "
+                f"블라인드 {added['blind']}건"
+            )
         detail = "\n".join(lines) or "등록된 단지 없음"
         _log_run(session, "articles", started, all_ok, detail)
     return detail

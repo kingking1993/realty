@@ -12,7 +12,12 @@ complexes:
     lawd_cd: "11500"          # 서울 강서구
     umd_nm: 등촌동
     apt_name_molit: 부영
-    keywords:
+    keywords:            # 단지 소식 (부영 탭)
       - 등촌 부영
       - 등촌부영
       - 등촌동 부영아파트
+    area_keywords:       # 지역 부동산 소식 (강서구 탭)
+      - 강서구 부동산
+      - 강서구 아파트
+      - 강서구 재건축
+    area_label: 강서구
