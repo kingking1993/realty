@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import {
-  Building2, LayoutDashboard, TrendingDown, Newspaper,
+  Building2, LayoutDashboard, ArrowUpDown, Newspaper,
   House, Receipt, Loader2, Check, X,
 } from 'lucide-react'
 import { collect } from './api.js'
 import Dashboard from './pages/Dashboard.jsx'
 import ComplexDetail from './pages/ComplexDetail.jsx'
 import Feed from './pages/Feed.jsx'
-import Drops from './pages/Drops.jsx'
+import Changes from './pages/Changes.jsx'
 
 const JOB_ICONS = { listings: House, transactions: Receipt, articles: Newspaper }
 
@@ -55,9 +55,9 @@ export default function App() {
           <LayoutDashboard size={16} strokeWidth={2} aria-hidden="true" />
           대시보드
         </NavLink>
-        <NavLink to="/drops">
-          <TrendingDown size={16} strokeWidth={2} aria-hidden="true" />
-          내려간 매물
+        <NavLink to="/changes">
+          <ArrowUpDown size={16} strokeWidth={2} aria-hidden="true" />
+          매물 변동
         </NavLink>
         <NavLink to="/feed">
           <Newspaper size={16} strokeWidth={2} aria-hidden="true" />
@@ -72,7 +72,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/complex/:id" element={<ComplexDetail />} />
-          <Route path="/drops" element={<Drops />} />
+          <Route path="/changes" element={<Changes />} />
+          <Route path="/drops" element={<Navigate to="/changes" replace />} />
           <Route path="/feed" element={<Feed />} />
         </Routes>
       </main>

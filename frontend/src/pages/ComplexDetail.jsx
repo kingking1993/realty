@@ -101,7 +101,7 @@ export default function ComplexDetail() {
               <thead>
                 <tr>
                   <th>동</th><th>층</th><th className="num">가격(호가)</th>
-                  <th>설명</th><th className="num">등록</th>
+                  <th>설명</th><th className="num">중개</th><th className="num">등록</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,6 +111,7 @@ export default function ComplexDetail() {
                     <td>{l.floor_info || '-'}</td>
                     <td className="num">{fmtPrice(l.price, l.price_monthly)}</td>
                     <td className="muted desc">{(l.description || '').slice(0, 40)}</td>
+                    <td className="num muted">{l.dup_count > 1 ? `${l.dup_count}곳` : '-'}</td>
                     <td className="num muted">{fmtDateShort(l.first_seen)}</td>
                   </tr>
                 ))}

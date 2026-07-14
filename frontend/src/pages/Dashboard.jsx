@@ -128,8 +128,8 @@ export default function Dashboard() {
           </table>
         </div>
         <p>
-          <Link className="more-link" to="/drops">
-            내려간 매물 추적
+          <Link className="more-link" to="/changes">
+            매물 변동 전체 보기
             <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
         </p>

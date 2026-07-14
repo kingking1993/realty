@@ -134,6 +134,28 @@ def _event_json(ev: ListingEvent, l: Listing) -> dict:
     }
 
 
+def _dedup_events(rows: list[dict], extra_key=lambda r: ()) -> list[dict]:
+    """같은 세대를 여러 중개사가 중복 게재한 이벤트를 병합하고 dup_count 부여.
+
+    rows는 최신순 정렬 상태를 가정하며, 병합 시 첫 행(최신)을 대표로 남긴다.
+    """
+    seen: dict[tuple, dict] = {}
+    result: list[dict] = []
+    for row in rows:
+        key = (
+            row["trade_type"], row["dong"], row["floor_info"],
+            row["event"], row["old_price"], row["new_price"],
+            row["price_monthly"], *extra_key(row),
+        )
+        if key in seen:
+            seen[key]["dup_count"] += 1
+        else:
+            row["dup_count"] = 1
+            seen[key] = row
+            result.append(row)
+    return result
+
+
 # ============================================================
 # JSON API
 # ============================================================
@@ -165,15 +187,18 @@ def api_dashboard(src: str = "", topic: str = ""):
                 "as_of": dates[0].isoformat() if dates else None,
             })
 
-        events = [
-            {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name}}
-            for ev, l, cx in s.execute(
-                select(ListingEvent, Listing, Complex)
-                .join(Listing, ListingEvent.listing_id == Listing.id)
-                .join(Complex, Listing.complex_id == Complex.id)
-                .order_by(desc(ListingEvent.occurred_at)).limit(15)
-            ).all()
-        ]
+        events = _dedup_events(
+            [
+                {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name}}
+                for ev, l, cx in s.execute(
+                    select(ListingEvent, Listing, Complex)
+                    .join(Listing, ListingEvent.listing_id == Listing.id)
+                    .join(Complex, Listing.complex_id == Complex.id)
+                    .order_by(desc(ListingEvent.occurred_at)).limit(80)
+                ).all()
+            ],
+            extra_key=lambda r: (r["complex"]["id"],),
+        )[:15]
 
         aq = select(Article).order_by(
             desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
@@ -224,20 +249,31 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
             ],
         }
 
-        listings = [
-            {
-                "id": l.id, "dong": l.dong, "floor_info": l.floor_info,
-                "price": l.price, "price_monthly": l.price_monthly,
-                "description": l.description,
-                "first_seen": l.first_seen.isoformat() if l.first_seen else None,
-            }
-            for l in s.scalars(
-                select(Listing).where(
-                    Listing.complex_id == complex_id, Listing.status == "active",
-                    Listing.trade_type == trade_type,
-                ).order_by(Listing.dong, Listing.area_exclusive, Listing.price)
-            )
-        ]
+        # 같은 세대(동·층·면적·가격)를 여러 중개사가 올린 중복 매물 병합
+        listing_groups: dict[tuple, dict] = {}
+        for l in s.scalars(
+            select(Listing).where(
+                Listing.complex_id == complex_id, Listing.status == "active",
+                Listing.trade_type == trade_type,
+            ).order_by(Listing.dong, Listing.area_exclusive, Listing.price)
+        ):
+            key = (l.dong, l.floor_info, l.area_exclusive, l.price, l.price_monthly)
+            g = listing_groups.get(key)
+            if g is None:
+                listing_groups[key] = {
+                    "id": l.id, "dong": l.dong, "floor_info": l.floor_info,
+                    "price": l.price, "price_monthly": l.price_monthly,
+                    "description": l.description,
+                    "first_seen": l.first_seen.isoformat() if l.first_seen else None,
+                    "dup_count": 1,
+                }
+            else:
+                g["dup_count"] += 1
+                # 가장 먼저 등록된 시점을 대표로
+                fs = l.first_seen.isoformat() if l.first_seen else None
+                if fs and (g["first_seen"] is None or fs < g["first_seen"]):
+                    g["first_seen"] = fs
+        listings = list(listing_groups.values())
 
         matches = {
             m.listing_id: m for m in s.scalars(
@@ -253,7 +289,7 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
             select(ListingEvent, Listing)
             .join(Listing, ListingEvent.listing_id == Listing.id)
             .where(Listing.complex_id == complex_id)
-            .order_by(desc(ListingEvent.occurred_at)).limit(100)
+            .order_by(desc(ListingEvent.occurred_at)).limit(300)
         ).all():
             e = _event_json(ev, l)
             m = matches.get(l.id)
@@ -265,6 +301,7 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
                     "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
                 }
             events.append(e)
+        events = _dedup_events(events)[:100]
 
         matched_txn_ids = {m.transaction_id for m in matches.values()}
         transactions = [
@@ -287,42 +324,47 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
         }
 
 
-@app.get("/api/drops")
-def api_drops(days: int = 30):
-    """내려간 매물 추적 — 가격 인하 + 소멸(실거래 매칭 포함)."""
+@app.get("/api/changes")
+def api_changes(days: int = 30):
+    """매물 변동 추적 — 신규 등록 / 가격 변동(인하·인상) / 소멸(실거래 매칭)."""
     days = max(1, min(days, 365))
     since = datetime.now() - timedelta(days=days)
     with session_scope() as s:
-        # 가격 인하 이벤트
-        cuts = []
-        for ev, l, cx in s.execute(
-            select(ListingEvent, Listing, Complex)
-            .join(Listing, ListingEvent.listing_id == Listing.id)
-            .join(Complex, Listing.complex_id == Complex.id)
-            .where(
-                ListingEvent.event == "PRICE_CHANGED",
-                ListingEvent.occurred_at >= since,
-                ListingEvent.new_price < ListingEvent.old_price,
-            )
-            .order_by(desc(ListingEvent.occurred_at)).limit(100)
-        ).all():
-            cut = (ev.old_price or 0) - (ev.new_price or 0)
-            cuts.append({
+        def _events(event: str) -> list[tuple]:
+            return s.execute(
+                select(ListingEvent, Listing, Complex)
+                .join(Listing, ListingEvent.listing_id == Listing.id)
+                .join(Complex, Listing.complex_id == Complex.id)
+                .where(ListingEvent.event == event, ListingEvent.occurred_at >= since)
+                .order_by(desc(ListingEvent.occurred_at)).limit(300)
+            ).all()
+
+        cx_key = lambda r: (r["complex"]["id"],)  # noqa: E731
+
+        # 신규 등록
+        news = _dedup_events([
+            {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name},
+             "status": l.status}
+            for ev, l, cx in _events("NEW")
+        ], extra_key=cx_key)[:100]
+
+        # 가격 변동 (인하 + 인상)
+        price_changes = []
+        for ev, l, cx in _events("PRICE_CHANGED"):
+            if not ev.old_price or ev.new_price == ev.old_price:
+                continue
+            diff = (ev.new_price or 0) - ev.old_price
+            price_changes.append({
                 **_event_json(ev, l),
                 "complex": {"id": cx.id, "name": cx.name},
                 "status": l.status,
-                "cut": cut,
-                "cut_pct": round(cut / ev.old_price * 100, 1) if ev.old_price else None,
+                "diff": diff,
+                "diff_pct": round(diff / ev.old_price * 100, 1),
             })
+        price_changes = _dedup_events(price_changes, extra_key=cx_key)[:100]
 
-        # 소멸 이벤트 (+ 실거래 매칭 추정)
-        removed_rows = s.execute(
-            select(ListingEvent, Listing, Complex)
-            .join(Listing, ListingEvent.listing_id == Listing.id)
-            .join(Complex, Listing.complex_id == Complex.id)
-            .where(ListingEvent.event == "REMOVED", ListingEvent.occurred_at >= since)
-            .order_by(desc(ListingEvent.occurred_at)).limit(100)
-        ).all()
+        # 소멸 (+ 실거래 매칭 추정)
+        removed_rows = _events("REMOVED")
         listing_ids = [l.id for _, l, _ in removed_rows]
         matches = {
             m.listing_id: m for m in s.scalars(
@@ -351,8 +393,19 @@ def api_drops(days: int = 30):
                     "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
                 }
             removed.append(row)
+        removed = _dedup_events(removed, extra_key=cx_key)[:100]
 
-        return {"days": days, "cuts": cuts, "removed": removed}
+        cuts = [p for p in price_changes if p["diff"] < 0]
+        raised = [p for p in price_changes if p["diff"] > 0]
+        return {
+            "days": days,
+            "stats": {
+                "new": len(news), "cut": len(cuts), "raised": len(raised),
+                "removed": len(removed),
+                "matched": sum(1 for r in removed if r.get("match")),
+            },
+            "news": news, "price_changes": price_changes, "removed": removed,
+        }
 
 
 @app.get("/api/feed")

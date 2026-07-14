@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  TrendingDown, Percent, PackageX, CheckCheck,
+  PackagePlus, TrendingDown, TrendingUp, PackageX, CheckCheck,
+  ArrowUp, ArrowDown,
 } from 'lucide-react'
 import { getJSON } from '../api.js'
 import { fmtPrice, fmtDateShort } from '../format.js'
@@ -16,31 +17,33 @@ function H2Icon({ icon: Icon }) {
   )
 }
 
-/** 내려간 매물 추적 — 가격 인하 + 소멸(실거래 매칭). */
-export default function Drops() {
+/** 중개사 중복 게재 수 표시. */
+function DupBadge({ count }) {
+  if (!count || count <= 1) return null
+  return <span className="muted"> ·중개 {count}곳</span>
+}
+
+/** 매물 변동 추적 — 신규 등록 / 가격 변동(인하·인상) / 소멸(실거래 매칭). */
+export default function Changes() {
   const [params, setParams] = useSearchParams()
   const days = Number(params.get('days')) || 30
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    getJSON(`/api/drops?days=${days}`).then(setData).catch(setError)
+    getJSON(`/api/changes?days=${days}`).then(setData).catch(setError)
   }, [days])
 
   if (error) return <div className="empty">불러오기 실패: {String(error.message || error)}</div>
   if (!data) return <div className="empty">불러오는 중…</div>
 
-  const totalCut = data.cuts.length
-  const avgCutPct = totalCut
-    ? (data.cuts.reduce((a, c) => a + (c.cut_pct || 0), 0) / totalCut).toFixed(1)
-    : null
-  const matchedCount = data.removed.filter((r) => r.match).length
+  const { stats } = data
 
   return (
     <>
       <div className="page-head">
-        <div className="kicker">Realty · 하락 신호 추적</div>
-        <h1>내려간 매물</h1>
+        <div className="kicker">Realty · 매물 변동 추적</div>
+        <h1>매물 변동</h1>
       </div>
 
       <div className="filters">
@@ -58,52 +61,98 @@ export default function Drops() {
       <div className="stats">
         <div className="stat hero">
           <div className="label">
+            <PackagePlus size={14} strokeWidth={2} aria-hidden="true" />신규 등록
+          </div>
+          <div className="value">{stats.new}건</div>
+        </div>
+        <div className="stat">
+          <div className="label">
             <TrendingDown size={14} strokeWidth={2} aria-hidden="true" />가격 인하
           </div>
-          <div className="value">{totalCut}건</div>
+          <div className="value">{stats.cut}건</div>
         </div>
         <div className="stat">
           <div className="label">
-            <Percent size={14} strokeWidth={2} aria-hidden="true" />평균 인하율
+            <TrendingUp size={14} strokeWidth={2} aria-hidden="true" />가격 인상
           </div>
-          <div className="value">{avgCutPct !== null ? `-${avgCutPct}%` : '-'}</div>
+          <div className="value">{stats.raised}건</div>
         </div>
         <div className="stat">
           <div className="label">
-            <PackageX size={14} strokeWidth={2} aria-hidden="true" />소멸 매물
+            <PackageX size={14} strokeWidth={2} aria-hidden="true" />소멸
           </div>
-          <div className="value">{data.removed.length}건</div>
+          <div className="value">{stats.removed}건</div>
         </div>
         <div className="stat">
           <div className="label">
             <CheckCheck size={14} strokeWidth={2} aria-hidden="true" />실거래 매칭
           </div>
-          <div className="value">{matchedCount}건</div>
+          <div className="value">{stats.matched}건</div>
         </div>
       </div>
 
-      <h2><H2Icon icon={TrendingDown} />가격 인하 매물</h2>
-      {data.cuts.length ? (
+      <h2><H2Icon icon={PackagePlus} />신규 등록 매물</h2>
+      {data.news.length ? (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>시각</th><th>단지</th><th>유형</th><th>동/층</th>
-                <th className="num">호가 변동</th><th className="num">인하폭</th><th>상태</th>
+                <th className="num">호가</th><th>상태</th>
               </tr>
             </thead>
             <tbody>
-              {data.cuts.map((ev) => (
+              {data.news.map((ev) => (
                 <tr key={ev.id}>
                   <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
                   <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
                   <td>{ev.trade_type}</td>
-                  <td>{ev.dong || '-'} {ev.floor_info}</td>
+                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
+                  <td className="num">{fmtPrice(ev.new_price ?? ev.price, ev.price_monthly)}</td>
+                  <td>
+                    {ev.status === 'removed'
+                      ? <span className="tag REMOVED">소멸</span>
+                      : <span className="tag">유지 중</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty">최근 {days}일 동안 신규 등록된 매물이 없습니다.</div>
+      )}
+
+      <h2><H2Icon icon={TrendingDown} />가격 변동 매물</h2>
+      {data.price_changes.length ? (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>시각</th><th>단지</th><th>유형</th><th>동/층</th>
+                <th className="num">호가 변동</th><th className="num">변동폭</th><th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.price_changes.map((ev) => (
+                <tr key={ev.id}>
+                  <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
+                  <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
+                  <td>{ev.trade_type}</td>
+                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
                   <td className="num">{fmtPrice(ev.old_price)} → {fmtPrice(ev.new_price)}</td>
                   <td className="num">
-                    <span className="delta down">
-                      -{fmtPrice(ev.cut)}{ev.cut_pct != null ? ` (-${ev.cut_pct}%)` : ''}
-                    </span>
+                    {ev.diff < 0 ? (
+                      <span className="delta down">
+                        <ArrowDown size={12} strokeWidth={2.5} aria-hidden="true" />
+                        {fmtPrice(-ev.diff)} ({ev.diff_pct}%)
+                      </span>
+                    ) : (
+                      <span className="delta up">
+                        <ArrowUp size={12} strokeWidth={2.5} aria-hidden="true" />
+                        {fmtPrice(ev.diff)} (+{ev.diff_pct}%)
+                      </span>
+                    )}
                   </td>
                   <td>
                     {ev.status === 'removed'
@@ -116,7 +165,7 @@ export default function Drops() {
           </table>
         </div>
       ) : (
-        <div className="empty">최근 {days}일 동안 가격이 내려간 매물이 없습니다.</div>
+        <div className="empty">최근 {days}일 동안 가격이 변동된 매물이 없습니다.</div>
       )}
 
       <h2><H2Icon icon={PackageX} />소멸 매물</h2>
@@ -138,8 +187,8 @@ export default function Drops() {
                   <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
                   <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
                   <td>{ev.trade_type}</td>
-                  <td>{ev.dong || '-'} {ev.floor_info}</td>
-                  <td className="num">{fmtPrice(ev.old_price ?? ev.price)}</td>
+                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
+                  <td className="num">{fmtPrice(ev.old_price ?? ev.price, ev.price_monthly)}</td>
                   <td>
                     {ev.match ? (
                       <span className="match-note">
