@@ -163,7 +163,7 @@ PC를 꺼도 항상 접속되게 하려면 (모두 무료):
 
 1. **Neon** (neon.tech) 가입 → 프로젝트 생성 (리전: Singapore) → **Connection string** 복사
    (예: `postgresql://user:pw@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`)
-2. **GitHub**에 이 저장소를 **Private**으로 push
+2. **GitHub**에 이 저장소를 push (Private 권장)
 3. **Render** (render.com) → New → **Blueprint** → GitHub 저장소 연결
    (`render.yaml`이 자동 인식됨) → 환경변수 입력:
    - `DATABASE_URL`: Neon 연결 주소
@@ -179,6 +179,11 @@ PC를 꺼도 항상 접속되게 하려면 (모두 무료):
 접속: `https://<앱>.onrender.com` — 브라우저가 아이디/비밀번호를 물으면
 아이디는 아무거나, 비밀번호는 `APP_PASSWORD` 값.
 
+> **빌드 과정**: `render.yaml`의 `buildCommand`가 파이썬 의존성 설치에 이어
+> `cd frontend && npm ci && npm run build`로 React 앱을 빌드합니다.
+> Render의 Python 런타임에는 Node.js가 포함되어 있어 별도 설정 없이 동작합니다.
+> `main`(또는 연결한 브랜치)에 push할 때마다 자동 재배포됩니다.
+
 무료 티어 특성:
 - 15분 무접속 시 잠들었다가 접속하면 ~1분 걸려 깨어남 (첫 화면만 느림)
 - 무료 인스턴스 시간은 계정당 월 750시간 — 다른 무료 서비스와 공유되므로
@@ -187,10 +192,53 @@ PC를 꺼도 항상 접속되게 하려면 (모두 무료):
 ### 매물 수집은 집 PC에서 (하이브리드)
 
 **네이버 부동산은 클라우드(데이터센터) IP를 차단**하므로 매물 수집만 집 PC가 담당한다
-(실거래·뉴스는 클라우드에서 정상). 로컬 `.env`에 같은 `DATABASE_URL`을 넣으면
-PC 수집 결과가 곧바로 클라우드 화면에 반영된다.
+(실거래·뉴스는 클라우드에서 정상). 로컬 `.env`에 클라우드와 **같은 `DATABASE_URL`**(Neon)을
+넣으면 PC 수집 결과가 곧바로 클라우드 화면에 반영된다.
 
-Windows 작업 스케줄러에 "Realty-listings" 작업 등록 (매일 10:00/18:00, 절전 깨우기):
+#### macOS (launchd)
+
+`~/Library/LaunchAgents/com.realty.listings.plist` 생성 (매일 10:00·18:00 실행,
+경로는 본인 저장소 위치로 수정):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.realty.listings</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/이름/Downloads/realty/.venv/bin/python</string>
+    <string>scripts/collect_now.py</string>
+    <string>--job</string><string>listings</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/이름/Downloads/realty</string>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>/tmp/realty-listings.log</string>
+  <key>StandardErrorPath</key><string>/tmp/realty-listings.err</string>
+</dict>
+</plist>
+```
+
+등록:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.realty.listings.plist
+launchctl start com.realty.listings   # 즉시 한 번 실행해 확인
+```
+
+> launchd는 예약 시각에 Mac이 꺼져 있었으면 **다음 켜졌을 때 한 번** 실행합니다.
+> 잠자기 중에도 실행되게 하려면 `sudo pmset repeat wakeorpoweron MTWRFSU 09:58:00`처럼
+> 깨우기 일정을 걸어두면 됩니다.
+
+#### Windows (작업 스케줄러)
+
+"Realty-listings" 작업 등록 (매일 10:00/18:00, 절전 깨우기):
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute "$PWD\.venv\Scripts\python.exe" `
