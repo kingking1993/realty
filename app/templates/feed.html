@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}뉴스·카페 — Realty{% endblock %}
 {% block content %}
-<h1>뉴스·카페 피드</h1>
+<div class="page-head">
+  <div class="kicker">Realty · 여론 모니터링</div>
+  <h1>뉴스·카페</h1>
+</div>
 
 <div class="filters">
   <a href="/feed?topic={{ topic }}" class="{{ 'active' if not source else '' }}">전체</a>

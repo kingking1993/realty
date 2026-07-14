@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ cx.name }} — Realty{% endblock %}
 {% block content %}
-<h1>{{ cx.name }}</h1>
+<div class="page-head">
+  <div class="kicker"><a href="/" style="color:inherit;text-decoration:none">대시보드</a> · 단지 상세</div>
+  <h1>{{ cx.name }}</h1>
+</div>
 
 <h2>매물 수 추이 (최근 90일)</h2>
 <div class="chart-box">
@@ -93,14 +96,14 @@
 <script src="/static/chart.umd.js"></script>
 <script>
   const chartData = {{ chart | tojson }};
-  const css = getComputedStyle(document.documentElement);
-  const seriesColors = [
-    css.getPropertyValue('--series-1').trim(),
-    css.getPropertyValue('--series-2').trim(),
-    css.getPropertyValue('--series-3').trim(),
-  ];
-  const ink2 = css.getPropertyValue('--ink-2').trim();
-  const grid = css.getPropertyValue('--grid').trim();
+  const ink = '#000000';
+  const ink2 = '#525252';
+  const grid = '#e5e5e5';
+  // 색 대신 선 패턴으로 시리즈 구분 (매매=실선, 전세=파선, 월세=점선)
+  const dashes = [[], [7, 4], [2, 4]];
+  const widths = [2.5, 2, 2];
+
+  Chart.defaults.font.family = "'JetBrains Mono', monospace";
 
   new Chart(document.getElementById('trend'), {
     type: 'line',
@@ -109,13 +112,15 @@
       datasets: chartData.series.map((s, i) => ({
         label: s.label,
         data: s.data,
-        borderColor: seriesColors[i],
-        backgroundColor: seriesColors[i],
-        borderWidth: 2,
-        pointRadius: chartData.labels.length > 30 ? 0 : 3,
+        borderColor: ink,
+        backgroundColor: ink,
+        borderWidth: widths[i],
+        borderDash: dashes[i],
+        pointRadius: chartData.labels.length > 30 ? 0 : 2.5,
         pointHoverRadius: 5,
+        pointBackgroundColor: ink,
         spanGaps: true,
-        tension: 0.15,
+        tension: 0,
       })),
     },
     options: {
@@ -123,12 +128,25 @@
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { labels: { color: ink2, usePointStyle: true, boxWidth: 8 } },
-        tooltip: { mode: 'index', intersect: false },
+        legend: {
+          labels: {
+            color: ink, usePointStyle: false, boxWidth: 28, boxHeight: 0,
+            font: { size: 11 },
+          },
+        },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: ink, titleColor: '#fff', bodyColor: '#fff',
+          cornerRadius: 0, borderWidth: 0, padding: 10,
+          titleFont: { family: "'JetBrains Mono', monospace" },
+          bodyFont: { family: "'JetBrains Mono', monospace" },
+        },
       },
       scales: {
-        x: { ticks: { color: ink2, maxTicksLimit: 12 }, grid: { color: grid } },
-        y: { beginAtZero: true, ticks: { color: ink2, precision: 0 }, grid: { color: grid } },
+        x: { ticks: { color: ink2, maxTicksLimit: 12, font: { size: 10 } },
+             grid: { color: grid, drawTicks: false }, border: { color: ink } },
+        y: { beginAtZero: true, ticks: { color: ink2, precision: 0, font: { size: 10 } },
+             grid: { color: grid, drawTicks: false }, border: { color: ink } },
       },
     },
   });
