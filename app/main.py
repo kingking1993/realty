@@ -1,7 +1,6 @@
 """FastAPI 앱: JSON API + React SPA 서빙 + APScheduler 수집 스케줄."""
 from __future__ import annotations
 
-import base64
 import logging
 import os
 import secrets
@@ -70,29 +69,15 @@ APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 
 @app.middleware("http")
 async def basic_auth(request: Request, call_next):
-    """APP_PASSWORD 가 설정된 경우에만 전체 접근을 비밀번호로 보호.
+    """/collect/* 만 APP_PASSWORD(?key=)로 보호. 화면·API는 공개.
 
     /collect/* 는 외부 크론(cron-job.org)이 호출할 수 있도록
-    ?key=<APP_PASSWORD> 쿼리 파라미터도 허용한다.
+    ?key=<APP_PASSWORD> 쿼리 파라미터로 인증한다.
     """
-    if APP_PASSWORD:
-        authorized = False
-        auth = request.headers.get("authorization", "")
-        if auth.startswith("Basic "):
-            try:
-                decoded = base64.b64decode(auth[6:]).decode("utf-8")
-                _, _, password = decoded.partition(":")
-                authorized = secrets.compare_digest(password, APP_PASSWORD)
-            except Exception:
-                authorized = False
-        if not authorized and request.url.path.startswith("/collect/"):
-            key = request.query_params.get("key", "")
-            authorized = secrets.compare_digest(key, APP_PASSWORD)
-        if not authorized:
-            return Response(
-                status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="realty"'},
-            )
+    if APP_PASSWORD and request.url.path.startswith("/collect/"):
+        key = request.query_params.get("key", "")
+        if not secrets.compare_digest(key, APP_PASSWORD):
+            return Response(status_code=401)
     return await call_next(request)
 
 

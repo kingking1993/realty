@@ -1,4 +1,3 @@
-import base64
 import os
 
 # app.main 이 import 시점에 APP_PASSWORD 를 읽으므로 먼저 설정
@@ -12,14 +11,8 @@ from app.main import app  # noqa: E402
 client = TestClient(app)
 
 
-def test_requires_password():
-    assert client.get("/").status_code == 401
-
-
-def test_basic_auth_ok():
-    token = base64.b64encode(b"anyone:testpw").decode()
-    r = client.get("/", headers={"Authorization": f"Basic {token}"})
-    assert r.status_code == 200
+def test_root_is_public():
+    assert client.get("/").status_code == 200
 
 
 def test_collect_key_param_passes_auth():
@@ -33,5 +26,5 @@ def test_collect_wrong_key_rejected():
     assert client.get("/collect/listings?key=wrong").status_code == 401
 
 
-def test_static_also_protected():
-    assert client.get("/static/style.css").status_code == 401
+def test_collect_missing_key_rejected():
+    assert client.get("/collect/listings").status_code == 401

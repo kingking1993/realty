@@ -168,16 +168,17 @@ PC를 꺼도 항상 접속되게 하려면 (모두 무료):
    (`render.yaml`이 자동 인식됨) → 환경변수 입력:
    - `DATABASE_URL`: Neon 연결 주소
    - `MOLIT_API_KEY`, `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`: `.env`와 동일
-   - `APP_PASSWORD`: 접속 비밀번호 (둘만 아는 값)
+   - `APP_PASSWORD`: `/collect/*` 수집 트리거 보호용 키 (화면 접속과는 무관)
 4. **cron-job.org** 가입 → 아래 URL로 크론 잡 등록 (시간대 Asia/Seoul):
    | URL | 시각 |
    |---|---|
    | `https://<앱>.onrender.com/collect/listings?key=<비밀번호>` | 10:00, 18:00 |
    | `https://<앱>.onrender.com/collect/transactions?key=<비밀번호>` | 11:00 |
    | `https://<앱>.onrender.com/collect/articles?key=<비밀번호>` | 08:00, 12:00, 17:00, 21:00 |
+   | `https://<앱>.onrender.com/` (keep-alive, 로그인 없음) | 10분마다 |
 
-접속: `https://<앱>.onrender.com` — 브라우저가 아이디/비밀번호를 물으면
-아이디는 아무거나, 비밀번호는 `APP_PASSWORD` 값.
+접속: `https://<앱>.onrender.com` — 화면은 비밀번호 없이 바로 열림.
+`APP_PASSWORD`는 `/collect/*` 엔드포인트(크론 트리거)만 보호한다.
 
 > **빌드 과정**: `render.yaml`의 `buildCommand`가 파이썬 의존성 설치에 이어
 > `cd frontend && npm ci && npm run build`로 React 앱을 빌드합니다.
