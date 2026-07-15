@@ -1,35 +1,30 @@
 /* ============================================================
-   Realty — Material You (Material Design 3)
-   Purple seed #6750A4 · 토널 서피스 · 필 버튼 · 유기적 라운딩
+   Realty — Clean White (MD3 구조 유지)
+   화이트 베이스 · 헤어라인 보더 · 뉴트럴 그레이 · 블루 액센트
    ============================================================ */
 
 :root {
-  /* 토널 팔레트 (seed #6750A4) */
-  --md-background: #FFFBFE;
-  --md-on-background: #1C1B1F;
-  --md-surface-container: #F3EDF7;
-  --md-surface-container-low: #E7E0EC;
-  --md-primary: #6750A4;
+  --md-background: #FFFFFF;
+  --md-on-background: #191B1E;
+  --md-surface-container: #FAFAFB;      /* 히어로/보조 서피스 */
+  --md-surface-container-low: #F3F4F6;  /* 중첩 요소·코드 */
+  --md-line: #E8EAED;                   /* 헤어라인 보더 */
+  --md-primary: #2563EB;                /* 블루 액센트 (링크·포커스·차트) */
   --md-on-primary: #FFFFFF;
-  --md-primary-container: #EADDFF;
-  --md-on-primary-container: #21005D;
-  --md-secondary: #625B71;
-  --md-secondary-container: #E8DEF8;
-  --md-on-secondary-container: #1D192B;
-  --md-tertiary: #7D5260;
-  --md-tertiary-container: #FFD8E4;
-  --md-on-tertiary-container: #31111D;
-  --md-outline: #79747E;
-  --md-outline-variant: #CAC4D0;
-  --md-on-surface-variant: #49454F;
-  --md-error: #B3261E;
-  --md-error-container: #F9DEDC;
-  --md-on-error-container: #410E0B;
+  --md-primary-container: #EFF4FF;      /* 연블루 틴트 */
+  --md-on-primary-container: #1E40AF;
+  --md-secondary-container: #F1F3F5;    /* 뉴트럴 칩/버튼 */
+  --md-on-secondary-container: #33363B;
+  --md-outline-variant: #E4E6EA;
+  --md-on-surface-variant: #6B7280;     /* 보조 텍스트 */
+  --md-error: #DC2626;
+  --md-error-container: #FDECEC;
+  --md-on-error-container: #B91C1C;
   /* 국내 관례: 상승=적색, 하락=녹색 */
-  --md-up-container: #F9DEDC;
-  --md-on-up-container: #8C1D18;
-  --md-down-container: #DCEDC8;
-  --md-on-down-container: #33691E;
+  --md-up-container: #FDECEC;
+  --md-on-up-container: #C2410C;
+  --md-down-container: #E7F4E8;
+  --md-on-down-container: #2F7D32;
 
   --md-ease: cubic-bezier(0.2, 0, 0, 1);
   --font-sans: Roboto, "Pretendard Variable", Pretendard, -apple-system,
@@ -49,19 +44,6 @@ body {
   line-height: 1.55;
 }
 
-/* 배경 색 워시 — 순백 금지, 은은한 래디얼 틴트 */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 85% -5%, var(--md-secondary-container) 0%, transparent 42%),
-    radial-gradient(circle at -10% 40%, var(--md-tertiary-container) 0%, transparent 35%);
-  opacity: 0.35;
-}
-
 #root { position: relative; z-index: 1; }
 
 /* ---- Skip link (접근성) ---- */
@@ -69,8 +51,8 @@ body::before {
   position: absolute;
   left: -999px;
   top: 8px;
-  background: var(--md-primary);
-  color: var(--md-on-primary);
+  background: var(--md-on-background);
+  color: #fff;
   padding: 12px 24px;
   border-radius: 9999px;
   font-size: 14px;
@@ -80,17 +62,17 @@ body::before {
 .skip-link:focus { left: 8px; }
 
 /* ============================================================
-   Header — backdrop blur + 필 네비게이션
+   Header — 화이트 + 헤어라인
    ============================================================ */
 .topnav {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: color-mix(in srgb, var(--md-background) 80%, transparent);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--md-outline-variant);
+  border-bottom: 1px solid var(--md-line);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -103,14 +85,14 @@ body::before {
   font-weight: 700;
   font-size: 22px;
   letter-spacing: -0.01em;
-  color: var(--md-primary);
+  color: var(--md-on-background);
   text-decoration: none;
   margin-right: 16px;
   border-radius: 9999px;
   padding: 6px 10px;
   transition: background-color 200ms var(--md-ease);
 }
-.topnav .brand:hover { background: color-mix(in srgb, var(--md-primary) 10%, transparent); }
+.topnav .brand:hover { background: var(--md-surface-container-low); }
 .topnav a:not(.brand) {
   display: inline-flex;
   align-items: center;
@@ -124,16 +106,17 @@ body::before {
   transition: background-color 300ms var(--md-ease), color 300ms var(--md-ease);
 }
 .topnav a:not(.brand):hover {
-  background: color-mix(in srgb, var(--md-primary) 10%, transparent);
+  background: var(--md-surface-container-low);
   color: var(--md-on-background);
 }
 .topnav a:not(.brand).active {
   background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
+  color: var(--md-on-background);
+  font-weight: 700;
 }
 .topnav .spacer { flex: 1; min-width: 8px; }
 
-/* 수집 버튼 — 토널 필 버튼 */
+/* 수집 버튼 — 뉴트럴 필 버튼 */
 .topnav .btn {
   display: inline-flex;
   align-items: center;
@@ -142,9 +125,9 @@ body::before {
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-  border: none;
+  background: var(--md-background);
+  color: var(--md-on-background);
+  border: 1px solid var(--md-outline-variant);
   border-radius: 9999px;
   height: 40px;
   padding: 0 20px;
@@ -153,8 +136,8 @@ body::before {
   transition: all 300ms var(--md-ease);
 }
 .topnav .btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--md-secondary-container) 100%, #000 8%);
-  box-shadow: 0 2px 8px rgba(28, 27, 31, 0.14);
+  background: var(--md-surface-container-low);
+  box-shadow: 0 1px 6px rgba(25, 27, 30, 0.08);
 }
 .topnav .btn:active:not(:disabled) { transform: scale(0.95); }
 .topnav .btn:disabled {
@@ -177,35 +160,15 @@ main {
   padding: 32px 24px 96px;
 }
 
-/* ---- Hero (page-head) — 대형 라운드 컨테이너 + 유기적 블러 셰이프 ---- */
+/* ---- Hero (page-head) — 미니멀 라운드 컨테이너 ---- */
 .page-head {
   position: relative;
   overflow: hidden;
   background: var(--md-surface-container);
-  border-radius: 48px;
-  padding: 48px 48px 44px;
-  margin-bottom: 48px;
-  box-shadow: 0 1px 3px rgba(28, 27, 31, 0.08);
-}
-.page-head::before,
-.page-head::after {
-  content: "";
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(64px);
-  pointer-events: none;
-}
-.page-head::before {
-  width: 380px; height: 380px;
-  right: -90px; top: -140px;
-  background: var(--md-primary);
-  opacity: 0.18;
-}
-.page-head::after {
-  width: 300px; height: 300px;
-  left: -70px; bottom: -160px;
-  background: var(--md-tertiary);
-  opacity: 0.16;
+  border: 1px solid var(--md-line);
+  border-radius: 28px;
+  padding: 44px 48px 40px;
+  margin-bottom: 44px;
 }
 .page-head .kicker {
   position: relative;
@@ -213,8 +176,9 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
+  background: var(--md-background);
+  border: 1px solid var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
   font-size: 13px;
   font-weight: 500;
   padding: 6px 16px;
@@ -228,15 +192,15 @@ main {
   background: var(--md-primary);
 }
 .page-head .kicker a { color: inherit; text-decoration: none; }
-.page-head .kicker a:hover { text-decoration: underline; }
+.page-head .kicker a:hover { color: var(--md-on-background); }
 
 h1 {
   position: relative;
   z-index: 1;
-  font-size: clamp(2.4rem, 6vw, 3.5rem);
-  font-weight: 500;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -244,13 +208,13 @@ h2 {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 2rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
   line-height: 1.25;
   margin: 64px 0 20px;
 }
-/* 섹션 헤더 아이콘 — 토널 컨테이너 */
+/* 섹션 헤더 아이콘 — 뉴트럴 컨테이너 + 블루 아이콘 */
 .h2-icon {
   display: inline-flex;
   align-items: center;
@@ -258,33 +222,35 @@ h2 {
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: var(--md-secondary-container);
+  background: var(--md-surface-container-low);
   color: var(--md-primary);
   flex-shrink: 0;
 }
 
 /* ============================================================
-   Cards — 단지 현황
+   Cards — 단지 현황 (화이트 + 헤어라인)
    ============================================================ */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 .card {
-  background: var(--md-surface-container);
-  border-radius: 24px;
-  padding: 28px;
-  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.06);
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 20px;
+  padding: 26px 28px;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
   transition: all 300ms var(--md-ease);
 }
 .card:hover {
-  box-shadow: 0 4px 16px rgba(28, 27, 31, 0.14);
-  transform: scale(1.02);
+  box-shadow: 0 6px 20px rgba(25, 27, 30, 0.08);
+  transform: translateY(-2px);
+  border-color: var(--md-outline-variant);
 }
 .card a.name {
-  font-size: 1.4rem;
-  font-weight: 500;
+  font-size: 1.35rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--md-on-background);
   text-decoration: none;
@@ -300,13 +266,14 @@ h2 {
 
 .countrow {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   margin-top: 20px;
 }
 .countrow .item {
   flex: 1;
-  background: var(--md-background);
-  border-radius: 16px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-line);
+  border-radius: 14px;
   padding: 12px 14px;
 }
 .countrow .item .label {
@@ -315,7 +282,7 @@ h2 {
   color: var(--md-on-surface-variant);
 }
 .countrow .item .value {
-  font-size: 1.9rem;
+  font-size: 1.85rem;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
@@ -345,16 +312,17 @@ h2 {
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
+  gap: 14px;
   margin: 0 0 24px;
 }
 .stat {
-  background: var(--md-surface-container);
-  border-radius: 20px;
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
   padding: 16px 20px;
   transition: all 300ms var(--md-ease);
 }
-.stat:hover { box-shadow: 0 2px 10px rgba(28, 27, 31, 0.12); }
+.stat:hover { box-shadow: 0 3px 12px rgba(25, 27, 30, 0.07); }
 .stat .label {
   display: inline-flex;
   align-items: center;
@@ -368,19 +336,24 @@ h2 {
   font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  color: var(--md-on-primary-container);
+  color: var(--md-on-background);
 }
-.stat.hero { background: var(--md-primary-container); }
-.stat.hero .label { color: var(--md-on-primary-container); opacity: 0.75; }
+.stat.hero {
+  background: var(--md-primary-container);
+  border-color: transparent;
+}
+.stat.hero .label { color: var(--md-on-primary-container); opacity: 0.8; }
+.stat.hero .value { color: var(--md-on-primary-container); }
 
 /* ============================================================
-   Tables — 라운드 카드 컨테이너
+   Tables — 화이트 카드 컨테이너
    ============================================================ */
 .table-wrap {
   overflow-x: auto;
-  background: var(--md-surface-container);
-  border-radius: 24px;
-  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.06);
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
 }
 table {
   border-collapse: collapse;
@@ -390,8 +363,8 @@ table {
 }
 th, td {
   text-align: left;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--md-outline-variant);
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--md-line);
   white-space: nowrap;
 }
 th {
@@ -399,11 +372,12 @@ th {
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--md-on-surface-variant);
+  background: var(--md-surface-container);
 }
 tbody tr {
   transition: background-color 200ms var(--md-ease);
 }
-tbody tr:hover { background: color-mix(in srgb, var(--md-primary) 5%, transparent); }
+tbody tr:hover { background: var(--md-surface-container); }
 tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; }
 td.desc {
@@ -418,10 +392,10 @@ table a {
   text-decoration: none;
   border-radius: 6px;
 }
-table a:hover { text-decoration: underline; }
+table a:hover, table a:focus-visible { text-decoration: underline; }
 
 /* ============================================================
-   Tags — MD3 칩 (토널 컨테이너로 의미 전달)
+   Tags — 뉴트럴 칩 (강조는 다크/라이트 틴트)
    ============================================================ */
 .tag {
   display: inline-flex;
@@ -433,19 +407,23 @@ table a:hover { text-decoration: underline; }
   padding: 3px 12px;
   border-radius: 9999px;
   background: var(--md-surface-container-low);
-  color: var(--md-on-surface-variant);
+  color: var(--md-on-secondary-container);
   vertical-align: middle;
 }
-.tag.NEW, .tag.HIGH { background: var(--md-primary); color: var(--md-on-primary); }
+.tag.NEW, .tag.HIGH { background: var(--md-on-background); color: #fff; }
 .tag.PRICE_CHANGED, .tag.MEDIUM { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
 .tag.REMOVED { background: var(--md-error-container); color: var(--md-on-error-container); }
-.tag.LOW { background: transparent; color: var(--md-on-surface-variant); box-shadow: inset 0 0 0 1px var(--md-outline-variant); }
-.tag.news { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
-.tag.cafe { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); }
-.tag.blind { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+.tag.LOW {
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  box-shadow: inset 0 0 0 1px var(--md-outline-variant);
+}
+.tag.news { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+.tag.cafe { background: #FDF3E7; color: #A16207; }
+.tag.blind { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
 
 /* ============================================================
-   Filters — MD3 필터 칩
+   Filters — 필터 칩 (선택 = 다크)
    ============================================================ */
 .filters {
   display: flex;
@@ -462,7 +440,7 @@ table a:hover { text-decoration: underline; }
   display: inline-flex;
   align-items: center;
   color: var(--md-on-surface-variant);
-  background: transparent;
+  background: var(--md-background);
   border: 1px solid var(--md-outline-variant);
   border-radius: 9999px;
   cursor: pointer;
@@ -470,43 +448,45 @@ table a:hover { text-decoration: underline; }
   transition: all 300ms var(--md-ease);
 }
 .filters a:hover, .filters button:hover {
-  background: color-mix(in srgb, var(--md-primary) 8%, transparent);
+  background: var(--md-surface-container-low);
   color: var(--md-on-background);
 }
 .filters a:active, .filters button:active { transform: scale(0.95); }
 .filters a.active, .filters button.active {
-  background: var(--md-secondary-container);
-  color: var(--md-on-secondary-container);
-  border-color: transparent;
-  box-shadow: 0 1px 3px rgba(28, 27, 31, 0.1);
+  background: var(--md-on-background);
+  color: #fff;
+  border-color: var(--md-on-background);
 }
 .filter-row { display: flex; gap: 20px; flex-wrap: wrap; }
 
 /* ============================================================
-   Feed items — 라운드 카드 리스트
+   Feed items — 화이트 카드 리스트
    ============================================================ */
 .feeditem {
-  background: var(--md-surface-container);
-  border-radius: 20px;
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
   padding: 20px 24px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 6px 14px;
   align-items: baseline;
-  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.05);
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.03);
   transition: all 300ms var(--md-ease);
 }
 .feeditem:hover {
-  box-shadow: 0 4px 14px rgba(28, 27, 31, 0.12);
+  box-shadow: 0 5px 16px rgba(25, 27, 30, 0.08);
   transform: translateY(-2px);
+  border-color: var(--md-outline-variant);
 }
 .feeditem .tag { grid-row: 1; }
 .feeditem a.title {
   grid-column: 2;
   font-size: 1.1rem;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.4;
+  letter-spacing: -0.01em;
   color: var(--md-on-background);
   text-decoration: none;
   border-radius: 6px;
@@ -540,18 +520,19 @@ table a:hover { text-decoration: underline; }
   border-radius: 9999px;
   transition: background-color 300ms var(--md-ease);
 }
-.more-link:hover { background: color-mix(in srgb, var(--md-primary) 10%, transparent); }
+.more-link:hover { background: var(--md-primary-container); }
 .more-link:active { transform: scale(0.95); }
 
 /* ============================================================
    Chart box
    ============================================================ */
 .chart-box {
-  background: var(--md-surface-container);
-  border-radius: 24px;
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
   padding: 24px;
   height: 340px;
-  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.06);
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
 }
 
 /* ============================================================
@@ -566,7 +547,8 @@ table a:hover { text-decoration: underline; }
   margin-top: 56px;
   padding: 16px 24px;
   background: var(--md-surface-container);
-  border-radius: 16px;
+  border: 1px solid var(--md-line);
+  border-radius: 14px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 28px;
@@ -583,7 +565,8 @@ table a:hover { text-decoration: underline; }
   padding: 44px 24px;
   text-align: center;
   background: var(--md-surface-container);
-  border-radius: 24px;
+  border: 1px dashed var(--md-outline-variant);
+  border-radius: 16px;
 }
 .empty code {
   background: var(--md-surface-container-low);
@@ -594,7 +577,7 @@ table a:hover { text-decoration: underline; }
 
 code { font-size: 0.85em; }
 
-::selection { background: var(--md-primary); color: var(--md-on-primary); }
+::selection { background: var(--md-on-background); color: #fff; }
 
 /* ============================================================
    Responsive
@@ -603,9 +586,9 @@ code { font-size: 0.85em; }
   main { padding: 20px 14px 72px; }
   .topnav { padding: 10px 14px; }
   .topnav .brand { font-size: 19px; margin-right: 4px; }
-  .page-head { border-radius: 24px; padding: 28px 24px; margin-bottom: 32px; }
-  h2 { font-size: 1.5rem; margin: 48px 0 16px; }
-  .cards { grid-template-columns: 1fr; gap: 16px; }
+  .page-head { border-radius: 20px; padding: 28px 24px; margin-bottom: 32px; }
+  h2 { font-size: 1.35rem; margin: 48px 0 16px; }
+  .cards { grid-template-columns: 1fr; gap: 14px; }
   .countrow { gap: 10px; }
   .countrow .item .value { font-size: 1.5rem; }
   th, td { padding: 11px 12px; }

@@ -6,16 +6,16 @@ import {
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Legend, Tooltip)
 
-// MD3 토널 팔레트 — 매매=primary, 전세=tertiary, 월세=teal(보조 하모니)
-const SERIES_COLORS = ['#6750A4', '#7D5260', '#006A6A']
-const ON_SURFACE_VARIANT = '#49454F'
-const GRID = '#E7E0EC'
+// 클린 화이트 팔레트 — 매매=블루, 전세=슬레이트, 월세=앰버
+const SERIES_COLORS = ['#2563EB', '#64748B', '#D97706']
+const ON_SURFACE_VARIANT = '#6B7280'
+const GRID = '#EEF0F2'
 
 export const CHART_DEFAULTS = {
   tooltip: {
-    backgroundColor: '#1C1B1F',
-    titleColor: '#F3EDF7',
-    bodyColor: '#F3EDF7',
+    backgroundColor: '#191B1E',
+    titleColor: '#F3F4F6',
+    bodyColor: '#F3F4F6',
     cornerRadius: 12,
     borderWidth: 0,
     padding: 12,

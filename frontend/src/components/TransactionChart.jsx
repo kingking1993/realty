@@ -9,10 +9,10 @@ import { CHART_DEFAULTS } from './TrendChart.jsx'
 Chart.register(ScatterController, LineController, LineElement, PointElement,
   TimeScale, CategoryScale, LinearScale, Legend, Tooltip)
 
-const PRIMARY = '#6750A4'
-const TERTIARY = '#7D5260'
-const ON_SURFACE_VARIANT = '#49454F'
-const GRID = '#E7E0EC'
+const PRIMARY = '#2563EB'   /* 개별 거래 산점 */
+const TERTIARY = '#191B1E'  /* 월평균 추세선 */
+const ON_SURFACE_VARIANT = '#6B7280'
+const GRID = '#EEF0F2'
 
 /** 실거래가 변화 — 개별 거래 산점 + 월평균 추세선. */
 export default function TransactionChart({ transactions }) {
