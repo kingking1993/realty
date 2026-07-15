@@ -1,0 +1,607 @@
+/* ============================================================
+   Realty — Clean White (MD3 구조 유지)
+   화이트 베이스 · 헤어라인 보더 · 뉴트럴 그레이 · 블루 액센트
+   ============================================================ */
+
+:root {
+  --md-background: #FFFFFF;
+  --md-on-background: #191B1E;
+  --md-surface-container: #FAFAFB;      /* 히어로/보조 서피스 */
+  --md-surface-container-low: #F3F4F6;  /* 중첩 요소·코드 */
+  --md-line: #E8EAED;                   /* 헤어라인 보더 */
+  --md-primary: #2563EB;                /* 블루 액센트 (링크·포커스·차트) */
+  --md-on-primary: #FFFFFF;
+  --md-primary-container: #EFF4FF;      /* 연블루 틴트 */
+  --md-on-primary-container: #1E40AF;
+  --md-secondary-container: #F1F3F5;    /* 뉴트럴 칩/버튼 */
+  --md-on-secondary-container: #33363B;
+  --md-outline-variant: #E4E6EA;
+  --md-on-surface-variant: #6B7280;     /* 보조 텍스트 */
+  --md-error: #DC2626;
+  --md-error-container: #FDECEC;
+  --md-on-error-container: #B91C1C;
+  /* 국내 관례: 상승=적색, 하락=녹색 */
+  --md-up-container: #FDECEC;
+  --md-on-up-container: #C2410C;
+  --md-down-container: #E7F4E8;
+  --md-on-down-container: #2F7D32;
+
+  --md-ease: cubic-bezier(0.2, 0, 0, 1);
+  --font-sans: Roboto, "Pretendard Variable", Pretendard, -apple-system,
+    "Apple SD Gothic Neo", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--md-background);
+  color: var(--md-on-background);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+#root { position: relative; z-index: 1; }
+
+/* ---- Skip link (접근성) ---- */
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  background: var(--md-on-background);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 100;
+}
+.skip-link:focus { left: 8px; }
+
+/* ============================================================
+   Header — 화이트 + 헤어라인
+   ============================================================ */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--md-line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+.topnav .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--md-on-background);
+  text-decoration: none;
+  margin-right: 16px;
+  border-radius: 9999px;
+  padding: 6px 10px;
+  transition: background-color 200ms var(--md-ease);
+}
+.topnav .brand:hover { background: var(--md-surface-container-low); }
+.topnav a:not(.brand) {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  transition: background-color 300ms var(--md-ease), color 300ms var(--md-ease);
+}
+.topnav a:not(.brand):hover {
+  background: var(--md-surface-container-low);
+  color: var(--md-on-background);
+}
+.topnav a:not(.brand).active {
+  background: var(--md-secondary-container);
+  color: var(--md-on-background);
+  font-weight: 700;
+}
+.topnav .spacer { flex: 1; min-width: 8px; }
+
+/* 수집 버튼 — 뉴트럴 필 버튼 */
+.topnav .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  background: var(--md-background);
+  color: var(--md-on-background);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 9999px;
+  height: 40px;
+  padding: 0 20px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: all 300ms var(--md-ease);
+}
+.topnav .btn:hover:not(:disabled) {
+  background: var(--md-surface-container-low);
+  box-shadow: 0 1px 6px rgba(25, 27, 30, 0.08);
+}
+.topnav .btn:active:not(:disabled) { transform: scale(0.95); }
+.topnav .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 포커스 링 — 모든 인터랙티브 요소 */
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--md-primary);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Layout
+   ============================================================ */
+main {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+
+/* ---- Hero (page-head) — 미니멀 라운드 컨테이너 ---- */
+.page-head {
+  position: relative;
+  overflow: hidden;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-line);
+  border-radius: 28px;
+  padding: 44px 48px 40px;
+  margin-bottom: 44px;
+}
+.page-head .kicker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--md-background);
+  border: 1px solid var(--md-outline-variant);
+  color: var(--md-on-surface-variant);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  margin-bottom: 20px;
+}
+.page-head .kicker::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: var(--md-primary);
+}
+.page-head .kicker a { color: inherit; text-decoration: none; }
+.page-head .kicker a:hover { color: var(--md-on-background); }
+
+h1 {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 64px 0 20px;
+}
+/* 섹션 헤더 아이콘 — 뉴트럴 컨테이너 + 블루 아이콘 */
+.h2-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--md-surface-container-low);
+  color: var(--md-primary);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Cards — 단지 현황 (화이트 + 헤어라인)
+   ============================================================ */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+.card {
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 20px;
+  padding: 26px 28px;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
+  transition: all 300ms var(--md-ease);
+}
+.card:hover {
+  box-shadow: 0 6px 20px rgba(25, 27, 30, 0.08);
+  transform: translateY(-2px);
+  border-color: var(--md-outline-variant);
+}
+.card a.name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--md-on-background);
+  text-decoration: none;
+  border-radius: 8px;
+  transition: color 200ms var(--md-ease);
+}
+.card a.name:hover { color: var(--md-primary); }
+.card .asof {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+  margin-left: 10px;
+}
+
+.countrow {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.countrow .item {
+  flex: 1;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.countrow .item .label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+}
+.countrow .item .value {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* delta — 토널 칩 (상승=적색, 하락=녹색: 국내 관례) */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  padding: 2px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.delta.up { background: var(--md-up-container); color: var(--md-on-up-container); }
+.delta.down { background: var(--md-down-container); color: var(--md-on-down-container); }
+.delta.flat { background: var(--md-surface-container-low); color: var(--md-on-surface-variant); }
+
+/* ---- 호가/통계 스탯 칩 ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin: 0 0 24px;
+}
+.stat {
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
+  padding: 16px 20px;
+  transition: all 300ms var(--md-ease);
+}
+.stat:hover { box-shadow: 0 3px 12px rgba(25, 27, 30, 0.07); }
+.stat .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--md-on-surface-variant);
+}
+.stat .value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--md-on-background);
+}
+.stat.hero {
+  background: var(--md-primary-container);
+  border-color: transparent;
+}
+.stat.hero .label { color: var(--md-on-primary-container); opacity: 0.8; }
+.stat.hero .value { color: var(--md-on-primary-container); }
+
+/* ============================================================
+   Tables — 화이트 카드 컨테이너
+   ============================================================ */
+.table-wrap {
+  overflow-x: auto;
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+th, td {
+  text-align: left;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--md-line);
+  white-space: nowrap;
+}
+th {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--md-on-surface-variant);
+  background: var(--md-surface-container);
+}
+tbody tr {
+  transition: background-color 200ms var(--md-ease);
+}
+tbody tr:hover { background: var(--md-surface-container); }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; }
+td.desc {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--md-on-surface-variant);
+}
+table a {
+  color: var(--md-primary);
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 6px;
+}
+table a:hover, table a:focus-visible { text-decoration: underline; }
+
+/* ============================================================
+   Tags — 뉴트럴 칩 (강조는 다크/라이트 틴트)
+   ============================================================ */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  background: var(--md-surface-container-low);
+  color: var(--md-on-secondary-container);
+  vertical-align: middle;
+}
+.tag.NEW, .tag.HIGH { background: var(--md-on-background); color: #fff; }
+.tag.PRICE_CHANGED, .tag.MEDIUM { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.tag.REMOVED { background: var(--md-error-container); color: var(--md-on-error-container); }
+.tag.LOW {
+  background: transparent;
+  color: var(--md-on-surface-variant);
+  box-shadow: inset 0 0 0 1px var(--md-outline-variant);
+}
+.tag.news { background: var(--md-primary-container); color: var(--md-on-primary-container); }
+.tag.cafe { background: #FDF3E7; color: #A16207; }
+.tag.blind { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+
+/* ============================================================
+   Filters — 필터 칩 (선택 = 다크)
+   ============================================================ */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 20px;
+  flex-wrap: wrap;
+}
+.filters a, .filters button {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 500;
+  height: 36px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--md-on-surface-variant);
+  background: var(--md-background);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 9999px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 300ms var(--md-ease);
+}
+.filters a:hover, .filters button:hover {
+  background: var(--md-surface-container-low);
+  color: var(--md-on-background);
+}
+.filters a:active, .filters button:active { transform: scale(0.95); }
+.filters a.active, .filters button.active {
+  background: var(--md-on-background);
+  color: #fff;
+  border-color: var(--md-on-background);
+}
+.filter-row { display: flex; gap: 20px; flex-wrap: wrap; }
+
+/* ============================================================
+   Feed items — 화이트 카드 리스트
+   ============================================================ */
+.feeditem {
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 14px;
+  align-items: baseline;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.03);
+  transition: all 300ms var(--md-ease);
+}
+.feeditem:hover {
+  box-shadow: 0 5px 16px rgba(25, 27, 30, 0.08);
+  transform: translateY(-2px);
+  border-color: var(--md-outline-variant);
+}
+.feeditem .tag { grid-row: 1; }
+.feeditem a.title {
+  grid-column: 2;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--md-on-background);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: color 200ms var(--md-ease);
+}
+.feeditem a.title:hover { color: var(--md-primary); }
+.feeditem .desc {
+  grid-column: 2;
+  color: var(--md-on-surface-variant);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+.feeditem .meta {
+  grid-column: 2;
+  color: var(--md-on-surface-variant);
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+/* 텍스트 버튼 (전체 보기) */
+.more-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--md-primary);
+  text-decoration: none;
+  border-radius: 9999px;
+  transition: background-color 300ms var(--md-ease);
+}
+.more-link:hover { background: var(--md-primary-container); }
+.more-link:active { transform: scale(0.95); }
+
+/* ============================================================
+   Chart box
+   ============================================================ */
+.chart-box {
+  background: var(--md-background);
+  border: 1px solid var(--md-line);
+  border-radius: 16px;
+  padding: 24px;
+  height: 340px;
+  box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
+}
+
+/* ============================================================
+   Misc
+   ============================================================ */
+.muted { color: var(--md-on-surface-variant); font-size: 0.88rem; }
+.match-note { font-size: 13px; color: var(--md-on-background); }
+
+.joblog {
+  font-size: 12.5px;
+  color: var(--md-on-surface-variant);
+  margin-top: 56px;
+  padding: 16px 24px;
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-line);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+}
+.joblog > div { display: inline-flex; align-items: center; gap: 6px; }
+.joblog .fail { color: var(--md-error); font-weight: 500; }
+
+/* 로딩 스피너 */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+.empty {
+  color: var(--md-on-surface-variant);
+  padding: 44px 24px;
+  text-align: center;
+  background: var(--md-surface-container);
+  border: 1px dashed var(--md-outline-variant);
+  border-radius: 16px;
+}
+.empty code {
+  background: var(--md-surface-container-low);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.85em;
+}
+
+code { font-size: 0.85em; }
+
+::selection { background: var(--md-on-background); color: #fff; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 760px) {
+  main { padding: 20px 14px 72px; }
+  .topnav { padding: 10px 14px; }
+  .topnav .brand { font-size: 19px; margin-right: 4px; }
+  .page-head { border-radius: 20px; padding: 28px 24px; margin-bottom: 32px; }
+  h2 { font-size: 1.35rem; margin: 48px 0 16px; }
+  .cards { grid-template-columns: 1fr; gap: 14px; }
+  .countrow { gap: 10px; }
+  .countrow .item .value { font-size: 1.5rem; }
+  th, td { padding: 11px 12px; }
+  table { font-size: 13px; }
+  td.desc { max-width: 130px; }
+  .feeditem { padding: 16px 18px; }
+}
+
+/* 모션 최소화 선호 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card:hover, .feeditem:hover { transform: none; }
+}

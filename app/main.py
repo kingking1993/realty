@@ -1,4 +1,4 @@
-"""FastAPI 앱: 웹 화면 + APScheduler 수집 스케줄."""
+"""FastAPI 앱: JSON API + React SPA 서빙 + APScheduler 수집 스케줄."""
 from __future__ import annotations
 
 import base64
@@ -12,9 +12,8 @@ from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import desc, select
 
 from app.config import load_complexes
@@ -35,7 +34,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 
 BASE = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=BASE / "templates")
+FRONTEND_DIST = BASE.parent / "frontend" / "dist"
 
 scheduler = BackgroundScheduler()
 
@@ -65,7 +64,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Realty", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 
@@ -98,25 +96,6 @@ async def basic_auth(request: Request, call_next):
     return await call_next(request)
 
 
-def _fmt_price(price: int, monthly: int = 0) -> str:
-    """만원 → '12.5억' 표기 (한 줄 고정용 축약형)."""
-    if price <= 0:
-        return "-"
-    s = f"{price / 10000:g}억" if price >= 10000 else f"{price:,}"
-    if monthly:
-        s += f"/{monthly:,}"
-    return s
-
-
-def _fmt_date_short(value) -> str:
-    """date/datetime → '7/13' 표기."""
-    return f"{value.month}/{value.day}" if value else "-"
-
-
-templates.env.filters["price"] = _fmt_price
-templates.env.filters["d"] = _fmt_date_short
-
-
 def _topic_labels() -> dict[str, str]:
     cfgs = load_complexes()
     return {
@@ -125,8 +104,64 @@ def _topic_labels() -> dict[str, str]:
     }
 
 
-@app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, src: str = "", topic: str = ""):
+def _article_json(a: Article) -> dict:
+    return {
+        "id": a.id,
+        "source": a.source,
+        "keyword": a.keyword,
+        "topic": a.topic,
+        "title": a.title,
+        "link": a.link,
+        "description": a.description,
+        "pub_date": a.pub_date.isoformat() if a.pub_date else None,
+        "fetched_at": a.fetched_at.isoformat() if a.fetched_at else None,
+    }
+
+
+def _event_json(ev: ListingEvent, l: Listing) -> dict:
+    return {
+        "id": ev.id,
+        "event": ev.event,
+        "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+        "old_price": ev.old_price,
+        "new_price": ev.new_price,
+        "trade_type": l.trade_type,
+        "dong": l.dong,
+        "floor_info": l.floor_info,
+        "price": l.price,
+        "price_monthly": l.price_monthly,
+        "listing_id": l.id,
+    }
+
+
+def _dedup_events(rows: list[dict], extra_key=lambda r: ()) -> list[dict]:
+    """같은 세대를 여러 중개사가 중복 게재한 이벤트를 병합하고 dup_count 부여.
+
+    rows는 최신순 정렬 상태를 가정하며, 병합 시 첫 행(최신)을 대표로 남긴다.
+    """
+    seen: dict[tuple, dict] = {}
+    result: list[dict] = []
+    for row in rows:
+        key = (
+            row["trade_type"], row["dong"], row["floor_info"],
+            row["event"], row["old_price"], row["new_price"],
+            row["price_monthly"], *extra_key(row),
+        )
+        if key in seen:
+            seen[key]["dup_count"] += 1
+        else:
+            row["dup_count"] = 1
+            seen[key] = row
+            result.append(row)
+    return result
+
+
+# ============================================================
+# JSON API
+# ============================================================
+
+@app.get("/api/dashboard")
+def api_dashboard(src: str = "", topic: str = ""):
     with session_scope() as s:
         complexes = list(s.scalars(select(Complex).order_by(Complex.name)))
         cards = []
@@ -135,7 +170,7 @@ def dashboard(request: Request, src: str = "", topic: str = ""):
                 select(DailyCount.date).where(DailyCount.complex_id == cx.id)
                 .distinct().order_by(desc(DailyCount.date)).limit(2)
             ))
-            counts: dict[str, tuple[int, int | None]] = {}
+            counts: dict[str, list[int | None]] = {}
             for tt in ("매매", "전세", "월세"):
                 today_n = prev_n = None
                 if dates:
@@ -146,16 +181,24 @@ def dashboard(request: Request, src: str = "", topic: str = ""):
                     prev_n = s.scalar(select(DailyCount.count).where(
                         DailyCount.complex_id == cx.id, DailyCount.date == dates[1],
                         DailyCount.trade_type == tt))
-                counts[tt] = (today_n or 0, prev_n)
-            cards.append({"cx": cx, "counts": counts,
-                          "as_of": dates[0] if dates else None})
+                counts[tt] = [today_n or 0, prev_n]
+            cards.append({
+                "id": cx.id, "name": cx.name, "counts": counts,
+                "as_of": dates[0].isoformat() if dates else None,
+            })
 
-        events = s.execute(
-            select(ListingEvent, Listing, Complex)
-            .join(Listing, ListingEvent.listing_id == Listing.id)
-            .join(Complex, Listing.complex_id == Complex.id)
-            .order_by(desc(ListingEvent.occurred_at)).limit(15)
-        ).all()
+        events = _dedup_events(
+            [
+                {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name}}
+                for ev, l, cx in s.execute(
+                    select(ListingEvent, Listing, Complex)
+                    .join(Listing, ListingEvent.listing_id == Listing.id)
+                    .join(Complex, Listing.complex_id == Complex.id)
+                    .order_by(desc(ListingEvent.occurred_at)).limit(80)
+                ).all()
+            ],
+            extra_key=lambda r: (r["complex"]["id"],),
+        )[:15]
 
         aq = select(Article).order_by(
             desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
@@ -164,27 +207,30 @@ def dashboard(request: Request, src: str = "", topic: str = ""):
             aq = aq.where(Article.source == src)
         if topic in ("complex", "area"):
             aq = aq.where(Article.topic == topic)
-        articles = list(s.scalars(aq))
+        articles = [_article_json(a) for a in s.scalars(aq)]
 
         logs = {}
         for job in JOBS:
-            logs[job] = s.scalar(
+            log = s.scalar(
                 select(CollectionLog).where(CollectionLog.job == job)
                 .order_by(desc(CollectionLog.started_at)).limit(1)
             )
+            logs[job] = {
+                "started_at": log.started_at.isoformat(), "ok": log.ok,
+            } if log else None
 
-        return templates.TemplateResponse(request, "dashboard.html", {
-            "cards": cards, "events": events, "articles": articles, "logs": logs,
-            "src": src, "topic": topic, "topic_labels": _topic_labels(),
-        })
+        return {
+            "cards": cards, "events": events, "articles": articles,
+            "logs": logs, "topic_labels": _topic_labels(),
+        }
 
 
-@app.get("/complex/{complex_id}", response_class=HTMLResponse)
-def complex_detail(request: Request, complex_id: int, trade_type: str = "매매"):
+@app.get("/api/complex/{complex_id}")
+def api_complex_detail(complex_id: int, trade_type: str = "매매"):
     with session_scope() as s:
         cx = s.get(Complex, complex_id)
         if cx is None:
-            return RedirectResponse("/")
+            return Response(status_code=404)
 
         since = date.today() - timedelta(days=90)
         chart_rows = s.execute(
@@ -203,19 +249,31 @@ def complex_detail(request: Request, complex_id: int, trade_type: str = "매매"
             ],
         }
 
-        listings = list(s.scalars(
+        # 같은 세대(동·층·면적·가격)를 여러 중개사가 올린 중복 매물 병합
+        listing_groups: dict[tuple, dict] = {}
+        for l in s.scalars(
             select(Listing).where(
                 Listing.complex_id == complex_id, Listing.status == "active",
                 Listing.trade_type == trade_type,
             ).order_by(Listing.dong, Listing.area_exclusive, Listing.price)
-        ))
-
-        events = s.execute(
-            select(ListingEvent, Listing)
-            .join(Listing, ListingEvent.listing_id == Listing.id)
-            .where(Listing.complex_id == complex_id)
-            .order_by(desc(ListingEvent.occurred_at)).limit(100)
-        ).all()
+        ):
+            key = (l.dong, l.floor_info, l.area_exclusive, l.price, l.price_monthly)
+            g = listing_groups.get(key)
+            if g is None:
+                listing_groups[key] = {
+                    "id": l.id, "dong": l.dong, "floor_info": l.floor_info,
+                    "price": l.price, "price_monthly": l.price_monthly,
+                    "description": l.description,
+                    "first_seen": l.first_seen.isoformat() if l.first_seen else None,
+                    "dup_count": 1,
+                }
+            else:
+                g["dup_count"] += 1
+                # 가장 먼저 등록된 시점을 대표로
+                fs = l.first_seen.isoformat() if l.first_seen else None
+                if fs and (g["first_seen"] is None or fs < g["first_seen"]):
+                    g["first_seen"] = fs
+        listings = list(listing_groups.values())
 
         matches = {
             m.listing_id: m for m in s.scalars(
@@ -226,22 +284,132 @@ def complex_detail(request: Request, complex_id: int, trade_type: str = "매매"
         txns_by_id = {t.id: t for t in s.scalars(
             select(Transaction).where(Transaction.complex_id == complex_id))}
 
-        transactions = list(s.scalars(
-            select(Transaction).where(Transaction.complex_id == complex_id)
-            .order_by(desc(Transaction.deal_date)).limit(100)
-        ))
-        matched_txn_listing = {m.transaction_id: m.listing_id for m in matches.values()}
+        events = []
+        for ev, l in s.execute(
+            select(ListingEvent, Listing)
+            .join(Listing, ListingEvent.listing_id == Listing.id)
+            .where(Listing.complex_id == complex_id)
+            .order_by(desc(ListingEvent.occurred_at)).limit(300)
+        ).all():
+            e = _event_json(ev, l)
+            m = matches.get(l.id)
+            if ev.event == "REMOVED" and m and m.transaction_id in txns_by_id:
+                t = txns_by_id[m.transaction_id]
+                e["match"] = {
+                    "confidence": m.confidence,
+                    "deal_date": t.deal_date.isoformat(),
+                    "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+                }
+            events.append(e)
+        events = _dedup_events(events)[:100]
 
-        return templates.TemplateResponse(request, "complex_detail.html", {
-            "cx": cx, "chart": chart, "listings": listings, "events": events,
-            "matches": matches, "txns_by_id": txns_by_id,
-            "transactions": transactions, "matched_txn_listing": matched_txn_listing,
-            "trade_type": trade_type,
-        })
+        matched_txn_ids = {m.transaction_id for m in matches.values()}
+        transactions = [
+            {
+                "id": t.id, "deal_date": t.deal_date.isoformat(),
+                "apt_dong": t.apt_dong, "floor": t.floor, "price": t.price,
+                "is_canceled": t.is_canceled,
+                "matched": t.id in matched_txn_ids,
+            }
+            for t in s.scalars(
+                select(Transaction).where(Transaction.complex_id == complex_id)
+                .order_by(desc(Transaction.deal_date)).limit(100)
+            )
+        ]
+
+        return {
+            "complex": {"id": cx.id, "name": cx.name},
+            "chart": chart, "listings": listings, "events": events,
+            "transactions": transactions, "trade_type": trade_type,
+        }
 
 
-@app.get("/feed", response_class=HTMLResponse)
-def feed(request: Request, source: str = "", topic: str = "", complex_id: int = 0):
+@app.get("/api/changes")
+def api_changes(days: int = 30):
+    """매물 변동 추적 — 신규 등록 / 가격 변동(인하·인상) / 소멸(실거래 매칭)."""
+    days = max(1, min(days, 365))
+    since = datetime.now() - timedelta(days=days)
+    with session_scope() as s:
+        def _events(event: str) -> list[tuple]:
+            return s.execute(
+                select(ListingEvent, Listing, Complex)
+                .join(Listing, ListingEvent.listing_id == Listing.id)
+                .join(Complex, Listing.complex_id == Complex.id)
+                .where(ListingEvent.event == event, ListingEvent.occurred_at >= since)
+                .order_by(desc(ListingEvent.occurred_at)).limit(300)
+            ).all()
+
+        cx_key = lambda r: (r["complex"]["id"],)  # noqa: E731
+
+        # 신규 등록
+        news = _dedup_events([
+            {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name},
+             "status": l.status}
+            for ev, l, cx in _events("NEW")
+        ], extra_key=cx_key)[:100]
+
+        # 가격 변동 (인하 + 인상)
+        price_changes = []
+        for ev, l, cx in _events("PRICE_CHANGED"):
+            if not ev.old_price or ev.new_price == ev.old_price:
+                continue
+            diff = (ev.new_price or 0) - ev.old_price
+            price_changes.append({
+                **_event_json(ev, l),
+                "complex": {"id": cx.id, "name": cx.name},
+                "status": l.status,
+                "diff": diff,
+                "diff_pct": round(diff / ev.old_price * 100, 1),
+            })
+        price_changes = _dedup_events(price_changes, extra_key=cx_key)[:100]
+
+        # 소멸 (+ 실거래 매칭 추정)
+        removed_rows = _events("REMOVED")
+        listing_ids = [l.id for _, l, _ in removed_rows]
+        matches = {
+            m.listing_id: m for m in s.scalars(
+                select(Match).where(Match.listing_id.in_(listing_ids))
+            )
+        } if listing_ids else {}
+        txn_ids = [m.transaction_id for m in matches.values()]
+        txns = {
+            t.id: t for t in s.scalars(
+                select(Transaction).where(Transaction.id.in_(txn_ids))
+            )
+        } if txn_ids else {}
+
+        removed = []
+        for ev, l, cx in removed_rows:
+            row = {
+                **_event_json(ev, l),
+                "complex": {"id": cx.id, "name": cx.name},
+            }
+            m = matches.get(l.id)
+            if m and m.transaction_id in txns:
+                t = txns[m.transaction_id]
+                row["match"] = {
+                    "confidence": m.confidence,
+                    "deal_date": t.deal_date.isoformat(),
+                    "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+                }
+            removed.append(row)
+        removed = _dedup_events(removed, extra_key=cx_key)[:100]
+
+        cuts = [p for p in price_changes if p["diff"] < 0]
+        raised = [p for p in price_changes if p["diff"] > 0]
+        return {
+            "days": days,
+            "stats": {
+                "new": len(news), "cut": len(cuts), "raised": len(raised),
+                "removed": len(removed),
+                "matched": sum(1 for r in removed if r.get("match")),
+            },
+            "news": news, "price_changes": price_changes, "removed": removed,
+        }
+
+
+@app.get("/api/feed")
+def api_feed(source: str = "", topic: str = "", complex_id: int = 0):
     with session_scope() as s:
         q = select(Article).order_by(
             desc(Article.pub_date).nulls_last(), desc(Article.fetched_at)
@@ -252,13 +420,15 @@ def feed(request: Request, source: str = "", topic: str = "", complex_id: int = 
             q = q.where(Article.topic == topic)
         if complex_id:
             q = q.where(Article.complex_id == complex_id)
-        articles = list(s.scalars(q))
-        complexes = list(s.scalars(select(Complex).order_by(Complex.name)))
-        return templates.TemplateResponse(request, "feed.html", {
+        articles = [_article_json(a) for a in s.scalars(q)]
+        complexes = [
+            {"id": cx.id, "name": cx.name}
+            for cx in s.scalars(select(Complex).order_by(Complex.name))
+        ]
+        return {
             "articles": articles, "complexes": complexes,
-            "source": source, "topic": topic, "complex_id": complex_id,
             "topic_labels": _topic_labels(),
-        })
+        }
 
 
 @app.api_route("/collect/{job}", methods=["GET", "POST"])
@@ -268,3 +438,22 @@ def collect_now(job: str):
         return {"ok": False, "error": "unknown job"}
     threading.Thread(target=JOBS[job], name=f"collect-{job}", daemon=True).start()
     return {"ok": True, "job": job}
+
+
+# ============================================================
+# React SPA 서빙 (frontend/dist) — API 라우트 뒤에 등록해야 함
+# ============================================================
+
+if (FRONTEND_DIST / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+def spa(full_path: str):
+    index = FRONTEND_DIST / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    return HTMLResponse(
+        "<h1>Realty</h1><p>프론트엔드 빌드가 없습니다. "
+        "<code>cd frontend && npm install && npm run build</code> 를 실행하세요.</p>"
+    )
