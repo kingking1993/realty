@@ -99,6 +99,17 @@ def test_jeonse_listing_not_matched(session, complex_obj):
     assert run_matching(session, now=datetime(2026, 7, 13)) == 0
 
 
+def test_naver_rounded_area_still_matches_molit_exact_area(session, complex_obj):
+    """네이버 area2(80.0)와 국토부 실거래 전용면적(80.64)의 0.64㎡ 차이는
+    반올림 표기 차이일 뿐이므로 매칭되어야 한다."""
+    session.add_all([
+        _removed_listing(complex_obj.id, area=80.0, dong="", floor_info="중/15"),
+        _txn(complex_obj.id, area=80.64, floor=8, apt_dong=""),
+    ])
+    session.flush()
+    assert run_matching(session, now=datetime(2026, 7, 13)) == 1
+
+
 def test_transaction_not_reused_across_listings(session, complex_obj):
     session.add_all([
         _removed_listing(complex_obj.id, no="r1"),

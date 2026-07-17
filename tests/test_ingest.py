@@ -130,3 +130,23 @@ def test_daily_counts(session, complex_obj):
     from app.models import DailyCount
     rows = {(r.trade_type): r.count for r in session.scalars(select(DailyCount))}
     assert rows == {"매매": 1, "전세": 1, "월세": 0}
+
+
+def test_daily_counts_reflects_removal_with_autoflush_off(complex_obj_noautoflush):
+    """운영 세션은 autoflush=False. 신규 매물 없이 소멸만 발생한 회차에서도
+    record_daily_counts가 방금 REMOVED된 매물을 active로 잘못 세면 안 된다."""
+    session, complex_obj = complex_obj_noautoflush
+    t0 = datetime(2026, 7, 1, 10, 0)
+    t1 = datetime(2026, 7, 2, 10, 0)
+    ingest_listing_snapshot(session, complex_obj.id, [_item("a1"), _item("a2")], now=t0)
+    session.flush()
+    # a2만 사라진 스냅샷 — new=0 이라 ingest_listing_snapshot 내부에서 flush가 안 걸린다
+    stats = ingest_listing_snapshot(session, complex_obj.id, [_item("a1")], now=t1)
+    assert stats == {"new": 0, "price_changed": 0, "removed": 1, "unchanged": 1}
+
+    record_daily_counts(session, complex_obj.id, now=t1)
+    session.flush()  # autoflush=False라 조회 전 명시적으로 flush (session_scope의 commit과 동치)
+    from app.models import DailyCount
+    row = session.scalar(select(DailyCount).where(
+        DailyCount.date == t1.date(), DailyCount.trade_type == "매매"))
+    assert row.count == 1  # 2가 아니라 1이어야 함 (a2는 이미 removed)

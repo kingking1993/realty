@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 LOOKBACK_DAYS = 90  # 이 기간 내 소멸 매물만 매칭 시도
 DEAL_WINDOW_DAYS = 30  # 계약일이 removed_at ±30일
-AREA_TOLERANCE = 0.5  # 전용면적 ±0.5㎡
+AREA_TOLERANCE = 1.0  # 전용면적 ±1.0㎡ (네이버 area2는 반올림값이라 실거래 정확값과 최대 1㎡ 안팎 차이)
 PRICE_TOLERANCE = 0.10  # 호가 대비 ±10%면 가점
 
 

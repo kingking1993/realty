@@ -110,6 +110,9 @@ def record_daily_counts(session: Session, complex_id: int, now: datetime | None 
     """현재 active 매물 수를 거래유형별로 오늘 날짜에 기록 (하루 여러 번이면 덮어씀)."""
     now = now or datetime.now()
     today = now.date()
+    # 세션이 autoflush=False라서, 같은 잡에서 방금 REMOVED로 표시한 매물이
+    # (신규 매물이 없어 flush를 안 거쳤다면) 이 SELECT엔 여전히 active로 잡힌다.
+    session.flush()
     counts: dict[str, int] = {}
     for l in session.scalars(
         select(Listing).where(Listing.complex_id == complex_id, Listing.status == "active")
