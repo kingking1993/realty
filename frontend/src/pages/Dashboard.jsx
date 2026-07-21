@@ -60,7 +60,6 @@ export default function Dashboard() {
   return (
     <>
       <div className="page-head">
-        <div className="kicker">Realty · 아파트 모니터링</div>
         <h1>대시보드</h1>
       </div>
 

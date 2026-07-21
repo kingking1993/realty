@@ -32,7 +32,6 @@ export default function Feed() {
   return (
     <>
       <div className="page-head">
-        <div className="kicker">Realty · 여론 모니터링</div>
         <h1>뉴스·카페</h1>
       </div>
 

@@ -52,7 +52,6 @@ export default function Changes() {
   return (
     <>
       <div className="page-head">
-        <div className="kicker">Realty · 매물 변동 추적</div>
         <h1>매물 변동</h1>
       </div>
 
@@ -70,40 +69,40 @@ export default function Changes() {
 
       <div className="stats">
         <div className="stat hero">
-          <div className="label">
-            <PackagePlus size={14} strokeWidth={2} aria-hidden="true" />신규 등록
-          </div>
-          <div className="value">{stats.new}건</div>
+          <span className="label">
+            <PackagePlus size={13} strokeWidth={2} aria-hidden="true" />신규
+          </span>
+          <span className="value">{stats.new}</span>
         </div>
         <div className="stat">
-          <div className="label">
-            <TrendingDown size={14} strokeWidth={2} aria-hidden="true" />가격 인하
-          </div>
-          <div className="value">{stats.cut}건</div>
+          <span className="label">
+            <TrendingDown size={13} strokeWidth={2} aria-hidden="true" />인하
+          </span>
+          <span className="value">{stats.cut}</span>
         </div>
         <div className="stat">
-          <div className="label">
-            <TrendingUp size={14} strokeWidth={2} aria-hidden="true" />가격 인상
-          </div>
-          <div className="value">{stats.raised}건</div>
+          <span className="label">
+            <TrendingUp size={13} strokeWidth={2} aria-hidden="true" />인상
+          </span>
+          <span className="value">{stats.raised}</span>
         </div>
         <div className="stat">
-          <div className="label">
-            <PackageX size={14} strokeWidth={2} aria-hidden="true" />소멸
-          </div>
-          <div className="value">{stats.removed}건</div>
+          <span className="label">
+            <PackageX size={13} strokeWidth={2} aria-hidden="true" />소멸
+          </span>
+          <span className="value">{stats.removed}</span>
         </div>
         <div className="stat">
-          <div className="label">
-            <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />재등록 추정
-          </div>
-          <div className="value">{stats.relisted ?? 0}건</div>
+          <span className="label">
+            <RefreshCw size={13} strokeWidth={2} aria-hidden="true" />재등록
+          </span>
+          <span className="value">{stats.relisted ?? 0}</span>
         </div>
         <div className="stat">
-          <div className="label">
-            <CheckCheck size={14} strokeWidth={2} aria-hidden="true" />실거래 매칭
-          </div>
-          <div className="value">{stats.matched}건</div>
+          <span className="label">
+            <CheckCheck size={13} strokeWidth={2} aria-hidden="true" />매칭
+          </span>
+          <span className="value">{stats.matched}</span>
         </div>
       </div>
 
