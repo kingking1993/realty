@@ -49,6 +49,7 @@ class Listing(Base):
     price: Mapped[int] = mapped_column(Integer, default=0)  # 매매가/보증금 (만원)
     price_monthly: Mapped[int] = mapped_column(Integer, default=0)  # 월세 (만원)
     description: Mapped[str] = mapped_column(Text, default="")
+    confirm_date: Mapped[str] = mapped_column(String, default="")  # 네이버 매물 등록·확인일 YYYYMMDD
     first_seen: Mapped[datetime] = mapped_column(DateTime)
     last_seen: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String, default="active", index=True)  # active/removed

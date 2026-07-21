@@ -28,6 +28,21 @@ def init_db() -> None:
     from app import models  # noqa: F401 — 테이블 정의 로드
 
     models.Base.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """create_all은 기존 테이블에 '컬럼'을 추가하지 못하므로, 나중에 늘어난
+    컬럼은 여기서 멱등하게 ALTER TABLE 한다 (SQLite·Postgres 공통)."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "listings" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("listings")}
+    if "confirm_date" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE listings ADD COLUMN confirm_date VARCHAR DEFAULT ''"))
 
 
 @contextmanager

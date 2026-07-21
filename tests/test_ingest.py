@@ -132,6 +132,21 @@ def test_daily_counts(session, complex_obj):
     assert rows == {"매매": 1, "전세": 1, "월세": 0}
 
 
+def test_daily_counts_dedupes_same_unit(session, complex_obj):
+    """같은 세대(동·층·면적·가격)를 여러 중개사가 올린 중복은 1건으로 센다
+    (네이버 '동일매물 묶기'와 동일). 원시 매물 3건이지만 세대는 2개."""
+    now = datetime(2026, 7, 13, 10, 0)
+    ingest_listing_snapshot(session, complex_obj.id, [
+        _item("a1", dong="101동", floor_info="중/15", price=130000),
+        _item("a2", dong="101동", floor_info="중/15", price=130000),  # a1과 동일 세대
+        _item("a3", dong="102동", floor_info="고/15", price=125000),
+    ], now=now)
+    record_daily_counts(session, complex_obj.id, now=now)
+    from app.models import DailyCount
+    row = session.scalar(select(DailyCount).where(DailyCount.trade_type == "매매"))
+    assert row.count == 2  # 원시 3건이 아니라 세대 2개
+
+
 def test_daily_counts_reflects_removal_with_autoflush_off(complex_obj_noautoflush):
     """운영 세션은 autoflush=False. 신규 매물 없이 소멸만 발생한 회차에서도
     record_daily_counts가 방금 REMOVED된 매물을 active로 잘못 세면 안 된다."""

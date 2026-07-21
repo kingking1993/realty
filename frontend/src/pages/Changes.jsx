@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   PackagePlus, TrendingDown, TrendingUp, PackageX, CheckCheck,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, RefreshCw,
 } from 'lucide-react'
 import { getJSON } from '../api.js'
 import { fmtPrice, fmtDateShort } from '../format.js'
@@ -12,7 +12,7 @@ const DAY_OPTIONS = [7, 30, 90]
 function H2Icon({ icon: Icon }) {
   return (
     <span className="h2-icon">
-      <Icon size={18} strokeWidth={2.2} aria-hidden="true" />
+      <Icon size={16} strokeWidth={2.2} aria-hidden="true" />
     </span>
   )
 }
@@ -21,6 +21,16 @@ function H2Icon({ icon: Icon }) {
 function DupBadge({ count }) {
   if (!count || count <= 1) return null
   return <span className="muted"> ·중개 {count}곳</span>
+}
+
+/** 재등록 추정 배지 — 소멸됐던 같은 세대가 다시 올라온 것으로 보일 때. */
+function RelistBadge({ from }) {
+  if (!from) return null
+  return (
+    <span className="tag relist" title="이전에 내려갔던 같은 세대 매물이 다시 등록된 것으로 추정">
+      <RefreshCw size={11} strokeWidth={2.2} aria-hidden="true" />재등록 추정
+    </span>
+  )
 }
 
 /** 매물 변동 추적 — 신규 등록 / 가격 변동(인하·인상) / 소멸(실거래 매칭). */
@@ -85,6 +95,12 @@ export default function Changes() {
         </div>
         <div className="stat">
           <div className="label">
+            <RefreshCw size={14} strokeWidth={2} aria-hidden="true" />재등록 추정
+          </div>
+          <div className="value">{stats.relisted ?? 0}건</div>
+        </div>
+        <div className="stat">
+          <div className="label">
             <CheckCheck size={14} strokeWidth={2} aria-hidden="true" />실거래 매칭
           </div>
           <div className="value">{stats.matched}건</div>
@@ -97,22 +113,24 @@ export default function Changes() {
           <table>
             <thead>
               <tr>
-                <th>시각</th><th>단지</th><th>유형</th><th>동/층</th>
+                <th>등록일</th><th>단지</th><th>유형</th><th>동/층</th>
                 <th className="num">호가</th><th>상태</th>
               </tr>
             </thead>
             <tbody>
               {data.news.map((ev) => (
                 <tr key={ev.id}>
-                  <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
+                  <td className="muted">{ev.confirm_date || fmtDateShort(ev.occurred_at)}</td>
                   <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
                   <td>{ev.trade_type}</td>
                   <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
                   <td className="num">{fmtPrice(ev.new_price ?? ev.price, ev.price_monthly)}</td>
                   <td>
-                    {ev.status === 'removed'
-                      ? <span className="tag REMOVED">소멸</span>
-                      : <span className="tag">유지 중</span>}
+                    {ev.relisted_from
+                      ? <RelistBadge from={ev.relisted_from} />
+                      : ev.status === 'removed'
+                        ? <span className="tag REMOVED">소멸</span>
+                        : <span className="tag">유지 중</span>}
                   </td>
                 </tr>
               ))}
@@ -190,7 +208,14 @@ export default function Changes() {
                   <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
                   <td className="num">{fmtPrice(ev.old_price ?? ev.price, ev.price_monthly)}</td>
                   <td>
-                    {ev.match ? (
+                    {ev.relisted_as ? (
+                      <span className="match-note">
+                        <span className="tag relist">
+                          <RefreshCw size={11} strokeWidth={2.2} aria-hidden="true" />재등록됨
+                        </span>{' '}
+                        {ev.relisted_as.confirm_date || fmtDateShort(ev.relisted_as.first_seen)}에 다시 등록 (실거래 아님 추정)
+                      </span>
+                    ) : ev.match ? (
                       <span className="match-note">
                         <span className={`tag ${ev.match.confidence}`}>{ev.match.confidence}</span>{' '}
                         {fmtDateShort(ev.match.deal_date)} {fmtPrice(ev.match.price)}에 거래 추정

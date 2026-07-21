@@ -3,7 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import select
 
 from app.models import Listing, Match, Transaction
-from app.services.matcher import floor_band, parse_floor, run_matching
+from app.services.matcher import find_relistings, floor_band, parse_floor, run_matching
 
 
 def test_parse_floor():
@@ -119,3 +119,52 @@ def test_transaction_not_reused_across_listings(session, complex_obj):
     session.flush()
     assert run_matching(session, now=datetime(2026, 7, 13)) == 1
     assert len(session.scalars(select(Match)).all()) == 1
+
+
+def _active_listing(complex_id: int, **kw) -> Listing:
+    return Listing(
+        article_no=kw.get("no", "n1"), complex_id=complex_id,
+        trade_type=kw.get("trade_type", "매매"), dong=kw.get("dong", "101동"),
+        floor_info=kw.get("floor_info", "12/25"), area_exclusive=kw.get("area", 84.98),
+        price=kw.get("price", 220000), price_monthly=0,
+        first_seen=kw.get("first_seen", datetime(2026, 7, 5)),
+        last_seen=kw.get("first_seen", datetime(2026, 7, 5)), status="active",
+    )
+
+
+def test_find_relistings_detects_same_unit_reappearance(session, complex_obj):
+    """소멸 후 window 내 같은 세대가 다시 나오면 재등록으로 추정."""
+    removed = _removed_listing(complex_obj.id, no="old", removed_at=datetime(2026, 7, 1))
+    new = _active_listing(complex_obj.id, no="new", first_seen=datetime(2026, 7, 5))
+    session.add_all([removed, new])
+    session.flush()
+    rel = find_relistings(session, now=datetime(2026, 7, 10))
+    assert rel == {new.id: removed.id}
+
+
+def test_find_relistings_ignores_out_of_window_and_other_units(session, complex_obj):
+    removed = _removed_listing(complex_obj.id, no="old", removed_at=datetime(2026, 7, 1))
+    too_late = _active_listing(complex_obj.id, no="late", first_seen=datetime(2026, 8, 1))
+    other = _active_listing(complex_obj.id, no="other", dong="999동",
+                            first_seen=datetime(2026, 7, 3))
+    session.add_all([removed, too_late, other])
+    session.flush()
+    assert find_relistings(session, now=datetime(2026, 8, 5)) == {}
+
+
+def test_relisted_removal_excluded_and_stale_match_cleaned(session, complex_obj):
+    """이전에 실거래로 (오)매칭된 소멸 매물이라도, 이후 같은 세대로 재등록되면
+    매칭을 지우고 더는 실거래로 매칭하지 않는다."""
+    removed = _removed_listing(complex_obj.id, no="old", removed_at=datetime(2026, 7, 1))
+    txn = _txn(complex_obj.id, deal_date=date(2026, 6, 28))
+    session.add_all([removed, txn])
+    session.flush()
+    # 1차: 재등록 매물이 아직 없어 실거래로 매칭됨
+    assert run_matching(session, now=datetime(2026, 7, 2)) == 1
+    assert len(session.scalars(select(Match)).all()) == 1
+
+    # 이후 같은 세대가 다시 등록됨 → 판 게 아니라 재등록
+    session.add(_active_listing(complex_obj.id, no="new", first_seen=datetime(2026, 7, 6)))
+    session.flush()
+    run_matching(session, now=datetime(2026, 7, 10))
+    assert len(session.scalars(select(Match)).all()) == 0  # 오매칭 정리됨

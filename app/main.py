@@ -27,6 +27,7 @@ from app.models import (
     Match,
     Transaction,
 )
+from app.services import ingest, matcher
 from app.services.jobs import JOBS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -103,6 +104,13 @@ def _article_json(a: Article) -> dict:
     }
 
 
+def _fmt_confirm(ymd: str) -> str | None:
+    """네이버 등록일 'YYYYMMDD' → 'YYYY-MM-DD' (표시·정렬용)."""
+    if ymd and len(ymd) == 8 and ymd.isdigit():
+        return f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:]}"
+    return None
+
+
 def _event_json(ev: ListingEvent, l: Listing) -> dict:
     return {
         "id": ev.id,
@@ -116,6 +124,7 @@ def _event_json(ev: ListingEvent, l: Listing) -> dict:
         "price": l.price,
         "price_monthly": l.price_monthly,
         "listing_id": l.id,
+        "confirm_date": _fmt_confirm(l.confirm_date),
     }
 
 
@@ -242,7 +251,7 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
                 Listing.trade_type == trade_type,
             ).order_by(Listing.dong, Listing.area_exclusive, Listing.price)
         ):
-            key = (l.dong, l.floor_info, l.area_exclusive, l.price, l.price_monthly)
+            key = ingest.listing_unit_key(l)
             g = listing_groups.get(key)
             if g is None:
                 listing_groups[key] = {
@@ -326,12 +335,35 @@ def api_changes(days: int = 30):
 
         cx_key = lambda r: (r["complex"]["id"],)  # noqa: E731
 
-        # 신규 등록
+        # 재등록 추정: {새_매물_id: 이전_소멸_매물_id}. 양방향 조회를 위해 관련 매물을 로드
+        relistings = matcher.find_relistings(s)
+        rl_ids = set(relistings) | set(relistings.values())
+        rl_listings = {
+            l.id: l for l in s.scalars(select(Listing).where(Listing.id.in_(rl_ids)))
+        } if rl_ids else {}
+        removed_to_new = {old_id: new_id for new_id, old_id in relistings.items()}
+
+        def _relist_info(prev: Listing) -> dict:
+            return {
+                "dong": prev.dong, "floor_info": prev.floor_info,
+                "price": prev.price, "price_monthly": prev.price_monthly,
+                "removed_at": prev.removed_at.isoformat() if prev.removed_at else None,
+                "confirm_date": _fmt_confirm(prev.confirm_date),
+            }
+
+        # 신규 등록 (재등록 추정이면 표시). 실제 네이버 등록일(confirm_date) 최신순 정렬.
         news = _dedup_events([
             {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name},
-             "status": l.status}
+             "status": l.status,
+             "relisted_from": (
+                 _relist_info(rl_listings[relistings[l.id]])
+                 if l.id in relistings and relistings[l.id] in rl_listings else None
+             )}
             for ev, l, cx in _events("NEW")
-        ], extra_key=cx_key)[:100]
+        ], extra_key=cx_key)
+        news.sort(key=lambda r: (r.get("confirm_date") or "", r["occurred_at"] or ""),
+                  reverse=True)
+        news = news[:100]
 
         # 가격 변동 (인하 + 인상)
         price_changes = []
@@ -369,14 +401,24 @@ def api_changes(days: int = 30):
                 **_event_json(ev, l),
                 "complex": {"id": cx.id, "name": cx.name},
             }
-            m = matches.get(l.id)
-            if m and m.transaction_id in txns:
-                t = txns[m.transaction_id]
-                row["match"] = {
-                    "confidence": m.confidence,
-                    "deal_date": t.deal_date.isoformat(),
-                    "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+            # 재등록으로 추정되면 실거래 매칭보다 우선해서 '재등록됨'으로 표시
+            new_id = removed_to_new.get(l.id)
+            if new_id is not None and new_id in rl_listings:
+                nl = rl_listings[new_id]
+                row["relisted_as"] = {
+                    "price": nl.price, "price_monthly": nl.price_monthly,
+                    "confirm_date": _fmt_confirm(nl.confirm_date),
+                    "first_seen": nl.first_seen.isoformat() if nl.first_seen else None,
                 }
+            else:
+                m = matches.get(l.id)
+                if m and m.transaction_id in txns:
+                    t = txns[m.transaction_id]
+                    row["match"] = {
+                        "confidence": m.confidence,
+                        "deal_date": t.deal_date.isoformat(),
+                        "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+                    }
             removed.append(row)
         removed = _dedup_events(removed, extra_key=cx_key)[:100]
 
@@ -388,6 +430,7 @@ def api_changes(days: int = 30):
                 "new": len(news), "cut": len(cuts), "raised": len(raised),
                 "removed": len(removed),
                 "matched": sum(1 for r in removed if r.get("match")),
+                "relisted": sum(1 for r in removed if r.get("relisted_as")),
             },
             "news": news, "price_changes": price_changes, "removed": removed,
         }

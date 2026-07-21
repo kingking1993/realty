@@ -166,24 +166,24 @@ main {
   overflow: hidden;
   background: var(--md-surface-container);
   border: 1px solid var(--md-line);
-  border-radius: 28px;
-  padding: 44px 48px 40px;
-  margin-bottom: 44px;
+  border-radius: 20px;
+  padding: 24px 28px 22px;
+  margin-bottom: 28px;
 }
 .page-head .kicker {
   position: relative;
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   background: var(--md-background);
   border: 1px solid var(--md-outline-variant);
   color: var(--md-on-surface-variant);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 6px 16px;
+  padding: 4px 12px;
   border-radius: 9999px;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 .page-head .kicker::before {
   content: "";
@@ -197,9 +197,9 @@ main {
 h1 {
   position: relative;
   z-index: 1;
-  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -207,39 +207,40 @@ h1 {
 h2 {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 1.7rem;
+  gap: 9px;
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
-  margin: 64px 0 20px;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 40px 0 14px;
 }
 /* 섹션 헤더 아이콘 — 뉴트럴 컨테이너 + 블루 아이콘 */
 .h2-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   background: var(--md-surface-container-low);
   color: var(--md-primary);
   flex-shrink: 0;
 }
+.h2-icon svg { width: 16px; height: 16px; }
 
 /* ============================================================
    Cards — 단지 현황 (화이트 + 헤어라인)
    ============================================================ */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
 }
 .card {
   background: var(--md-background);
   border: 1px solid var(--md-line);
-  border-radius: 20px;
-  padding: 26px 28px;
+  border-radius: 16px;
+  padding: 16px 20px;
   box-shadow: 0 1px 2px rgba(25, 27, 30, 0.04);
   transition: all 300ms var(--md-ease);
 }
@@ -249,7 +250,7 @@ h2 {
   border-color: var(--md-outline-variant);
 }
 .card a.name {
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--md-on-background);
@@ -259,22 +260,22 @@ h2 {
 }
 .card a.name:hover { color: var(--md-primary); }
 .card .asof {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--md-on-surface-variant);
-  margin-left: 10px;
+  margin-left: 8px;
 }
 
+/* 매매·전세·월세를 한 행에 컴팩트하게 */
 .countrow {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  align-items: baseline;
+  gap: 18px;
+  margin-top: 12px;
 }
 .countrow .item {
-  flex: 1;
-  background: var(--md-surface-container);
-  border: 1px solid var(--md-line);
-  border-radius: 14px;
-  padding: 12px 14px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
 }
 .countrow .item .label {
   font-size: 12px;
@@ -282,15 +283,14 @@ h2 {
   color: var(--md-on-surface-variant);
 }
 .countrow .item .value {
-  font-size: 1.85rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 5px;
 }
 
 /* delta — 토널 칩 (상승=적색, 하락=녹색: 국내 관례) */
@@ -298,10 +298,10 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 500;
   border-radius: 9999px;
-  padding: 2px 9px;
+  padding: 1px 7px;
   font-variant-numeric: tabular-nums;
 }
 .delta.up { background: var(--md-up-container); color: var(--md-on-up-container); }
@@ -311,15 +311,19 @@ h2 {
 /* ---- 호가/통계 스탯 칩 ---- */
 .stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 14px;
-  margin: 0 0 24px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin: 0 0 20px;
 }
 .stat {
   background: var(--md-background);
   border: 1px solid var(--md-line);
-  border-radius: 16px;
-  padding: 16px 20px;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   transition: all 300ms var(--md-ease);
 }
 .stat:hover { box-shadow: 0 3px 12px rgba(25, 27, 30, 0.07); }
@@ -332,7 +336,7 @@ h2 {
   color: var(--md-on-surface-variant);
 }
 .stat .value {
-  font-size: 1.45rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -418,6 +422,7 @@ table a:hover, table a:focus-visible { text-decoration: underline; }
   color: var(--md-on-surface-variant);
   box-shadow: inset 0 0 0 1px var(--md-outline-variant);
 }
+.tag.relist { background: #FEF3C7; color: #92400E; }
 .tag.news { background: var(--md-primary-container); color: var(--md-on-primary-container); }
 .tag.cafe { background: #FDF3E7; color: #A16207; }
 .tag.blind { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
@@ -586,11 +591,10 @@ code { font-size: 0.85em; }
   main { padding: 20px 14px 72px; }
   .topnav { padding: 10px 14px; }
   .topnav .brand { font-size: 19px; margin-right: 4px; }
-  .page-head { border-radius: 20px; padding: 28px 24px; margin-bottom: 32px; }
-  h2 { font-size: 1.35rem; margin: 48px 0 16px; }
-  .cards { grid-template-columns: 1fr; gap: 14px; }
-  .countrow { gap: 10px; }
-  .countrow .item .value { font-size: 1.5rem; }
+  .page-head { border-radius: 16px; padding: 20px 18px; margin-bottom: 22px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 12px; }
+  .cards { grid-template-columns: 1fr; gap: 12px; }
+  .countrow { gap: 16px; }
   th, td { padding: 11px 12px; }
   table { font-size: 13px; }
   td.desc { max-width: 130px; }

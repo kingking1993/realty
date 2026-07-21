@@ -59,6 +59,7 @@ def ingest_listing_snapshot(
                 existing.removed_at = None
                 existing.last_seen = now
                 existing.price = item["price"]
+                existing.confirm_date = item.get("confirm_date", "") or existing.confirm_date
                 session.add(ListingEvent(listing_id=existing.id, event="NEW",
                                          new_price=item["price"], occurred_at=now))
                 stats["new"] += 1
@@ -73,6 +74,7 @@ def ingest_listing_snapshot(
                 price=item["price"],
                 price_monthly=item["price_monthly"],
                 description=item.get("description", ""),
+                confirm_date=item.get("confirm_date", ""),
                 first_seen=now,
                 last_seen=now,
                 status="active",
@@ -84,6 +86,8 @@ def ingest_listing_snapshot(
             stats["new"] += 1
         else:
             existing.last_seen = now
+            if item.get("confirm_date"):
+                existing.confirm_date = item["confirm_date"]
             if existing.price != item["price"] or existing.price_monthly != item["price_monthly"]:
                 session.add(ListingEvent(listing_id=existing.id, event="PRICE_CHANGED",
                                          old_price=existing.price, new_price=item["price"],
@@ -106,18 +110,32 @@ def ingest_listing_snapshot(
     return stats
 
 
+def listing_unit_key(l: Listing) -> tuple:
+    """같은 세대(같은 집)를 식별하는 키. 여러 중개사가 올린 동일 매물을 하나로 묶는다.
+
+    네이버 부동산의 '동일매물 묶기'(기본 ON)와 같은 기준이라, 이 키로 센 매물 수가
+    네이버 웹에 표시되는 수와 대체로 일치한다. 상세 페이지 목록도 같은 키로 병합한다.
+    """
+    return (l.dong, l.floor_info, l.area_exclusive, l.price, l.price_monthly)
+
+
 def record_daily_counts(session: Session, complex_id: int, now: datetime | None = None) -> None:
-    """현재 active 매물 수를 거래유형별로 오늘 날짜에 기록 (하루 여러 번이면 덮어씀)."""
+    """현재 active 매물 수를 거래유형별로 오늘 날짜에 기록 (하루 여러 번이면 덮어씀).
+
+    같은 세대를 여러 중개사가 올린 중복은 하나로 세어(네이버 '동일매물 묶기'와 동일 기준)
+    대시보드 수치가 네이버 웹 및 상세 페이지 목록과 일치하도록 한다.
+    """
     now = now or datetime.now()
     today = now.date()
     # 세션이 autoflush=False라서, 같은 잡에서 방금 REMOVED로 표시한 매물이
     # (신규 매물이 없어 flush를 안 거쳤다면) 이 SELECT엔 여전히 active로 잡힌다.
     session.flush()
-    counts: dict[str, int] = {}
+    seen_units: dict[str, set[tuple]] = {}
     for l in session.scalars(
         select(Listing).where(Listing.complex_id == complex_id, Listing.status == "active")
     ):
-        counts[l.trade_type] = counts.get(l.trade_type, 0) + 1
+        seen_units.setdefault(l.trade_type, set()).add(listing_unit_key(l))
+    counts = {tt: len(units) for tt, units in seen_units.items()}
     for trade_type in ("매매", "전세", "월세"):
         count = counts.get(trade_type, 0)
         row = session.scalar(

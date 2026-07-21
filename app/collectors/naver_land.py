@@ -79,6 +79,9 @@ def _normalize_article(item: dict) -> dict:
         "price": _parse_price(item.get("dealOrWarrantPrc")),  # 매매가/보증금
         "price_monthly": _parse_price(item.get("rentPrc")),  # 월세
         "description": str(item.get("articleFeatureDesc", "") or ""),
+        # 네이버가 주는 실제 매물 등록·확인일(YYYYMMDD). 우리가 수집한 시각(first_seen)과
+        # 달리 '매물이 언제부터 나와 있었는지'를 보여줘, 신규 정렬·재등록 추정에 쓴다.
+        "confirm_date": str(item.get("articleConfirmYmd", "") or ""),
     }
 
 
