@@ -23,6 +23,22 @@ export function fmtFloor(info) {
   return String(info).split('/')[0]
 }
 
+/** 등록/동층/호가 컬럼 정렬. col: '등록'|'동층'|'호가', dir: 'asc'|'desc'. */
+export function sortListings(rows, col, dir) {
+  const s = dir === 'asc' ? 1 : -1
+  const key = {
+    등록: (r) => r.confirm_date || r.occurred_at || '',
+    동층: (r) => `${r.dong || ''} ${r.floor_info || ''}`,
+    호가: (r) => r.price || 0,
+  }[col] || ((r) => r.confirm_date || '')
+  return [...rows].sort((a, b) => {
+    const ka = key(a); const kb = key(b)
+    if (ka < kb) return -1 * s
+    if (ka > kb) return 1 * s
+    return 0
+  })
+}
+
 /** ISO → 'YYYY-MM-DD'. */
 export function fmtDate(iso) {
   return iso ? iso.slice(0, 10) : '-'

@@ -449,6 +449,9 @@ tbody tr {
 tbody tr:hover { background: var(--md-surface-container); }
 tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--md-on-background); background: var(--md-surface-container-low); }
+th.sortable.active { color: var(--md-primary); }
 td.desc {
   max-width: 220px;
   overflow: hidden;

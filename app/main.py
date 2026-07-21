@@ -167,33 +167,24 @@ def _price_change_dir(session, complex_id: int) -> dict[int, str]:
     return out
 
 
-def _active_groups(session, complex_id: int, trade_type: str,
-                   change_dir: dict[int, str], today: str) -> list[dict]:
-    """현재 active 매물을 세대 단위로 병합해 반환. change: 신규(당일)/인하/인상/None."""
-    groups: dict[tuple, dict] = {}
+def _active_listings(session, complex_id: int, trade_type: str,
+                     change_dir: dict[int, str], today: str) -> list[dict]:
+    """현재 active 매물을 개별(중복 묶지 않음)로 반환. change: 신규(당일)/인하/인상/None."""
+    rows = []
     for l in session.scalars(
         select(Listing).where(
             Listing.complex_id == complex_id, Listing.status == "active",
             Listing.trade_type == trade_type,
-        ).order_by(Listing.dong, Listing.area_exclusive, Listing.price)
+        ).order_by(Listing.dong, Listing.floor_info, Listing.price)
     ):
-        key = ingest.listing_unit_key(l)
         is_new = _fmt_confirm(l.confirm_date) == today
-        change = "신규" if is_new else change_dir.get(l.id)
-        g = groups.get(key)
-        if g is None:
-            groups[key] = {
-                "id": l.id, "dong": l.dong, "floor_info": l.floor_info,
-                "price": l.price, "price_monthly": l.price_monthly,
-                "confirm_date": _fmt_confirm(l.confirm_date),
-                "change": change, "dup_count": 1,
-            }
-        else:
-            g["dup_count"] += 1
-            # 신규 > 인하/인상 > 없음 우선순위로 대표 change 유지
-            if change == "신규" or (g["change"] is None and change):
-                g["change"] = change
-    return list(groups.values())
+        rows.append({
+            "id": l.id, "dong": l.dong, "floor_info": l.floor_info,
+            "price": l.price, "price_monthly": l.price_monthly,
+            "confirm_date": _fmt_confirm(l.confirm_date),
+            "change": "신규" if is_new else change_dir.get(l.id),
+        })
+    return rows
 
 
 # ============================================================
@@ -225,7 +216,7 @@ def api_dashboard(src: str = "", topic: str = ""):
                 counts[tt] = [today_n or 0, prev_n]
             change_dir = _price_change_dir(s, cx.id)
             listings = {
-                tt: _active_groups(s, cx.id, tt, change_dir, today)
+                tt: _active_listings(s, cx.id, tt, change_dir, today)
                 for tt in ("매매", "전세", "월세")
             }
             cards.append({
@@ -360,92 +351,59 @@ def api_complex_detail(complex_id: int, trade_type: str = "매매"):
 
 @app.get("/api/changes")
 def api_changes():
-    """매물 변동 — 카테고리별(신규/유지/재등록/소멸/인상/인하) 전체 로그. 기간 제한 없음.
+    """매물 변동 — 전체 매물을 한 목록으로(중복 안 묶음), 각 행에 변동(신규/유지/재등록/
+    인상/인하/소멸) 표시. 카테고리별 개수와 함께 반환하며 기간 제한은 없다(전체 로그).
 
-    신규/유지/재등록은 '현재 active 매물'의 상태이고, 소멸/인상/인하는 이벤트 로그다.
+    신규/유지/재등록/인상/인하는 현재 active 매물의 상태, 소멸은 사라진 매물이다.
     """
     today = date.today().isoformat()
     with session_scope() as s:
-        cx_key = lambda r: (r["complex"]["id"],)  # noqa: E731
-
         # 재등록 추정: {새_매물_id: 이전_소멸_매물_id}
         relistings = matcher.find_relistings(s)
         relisted_new_ids = set(relistings)
-        prev_by_id = {
-            rid: s.get(Listing, rid) for rid in set(relistings.values())
-        }
+        prev_by_id = {rid: s.get(Listing, rid) for rid in set(relistings.values())}
+        removed_to_new = {old_id: new_id for new_id, old_id in relistings.items()}
 
-        def _relist_info(prev: Listing | None) -> dict | None:
-            if prev is None:
-                return None
-            return {
-                "dong": prev.dong, "floor_info": prev.floor_info,
-                "price": prev.price, "price_monthly": prev.price_monthly,
-                "removed_at": prev.removed_at.isoformat() if prev.removed_at else None,
-                "confirm_date": _fmt_confirm(prev.confirm_date),
-            }
+        # 가장 최근 PRICE_CHANGED 방향 (listing_id → 인하/인상)
+        change_dir: dict[int, str] = {}
+        for ev in s.execute(
+            select(ListingEvent).order_by(ListingEvent.occurred_at)
+        ).scalars():
+            if ev.event == "PRICE_CHANGED" and ev.old_price and ev.new_price \
+                    and ev.new_price != ev.old_price:
+                change_dir[ev.listing_id] = "인하" if ev.new_price < ev.old_price else "인상"
 
-        # ---- 현재 active 매물: 신규(당일)/유지/재등록 으로 분류 (세대 단위 병합) ----
-        active_groups: dict[tuple, dict] = {}
-        active_order: list[tuple] = []
+        rows: list[dict] = []
+        stats = {k: 0 for k in ("신규", "유지", "재등록", "인상", "인하", "소멸")}
+
+        # ---- 현재 active 매물 (개별, 중복 안 묶음) ----
         for l, cx in s.execute(
             select(Listing, Complex).join(Complex, Listing.complex_id == Complex.id)
             .where(Listing.status == "active")
-            .order_by(Listing.dong, Listing.area_exclusive, Listing.price)
+            .order_by(Listing.dong, Listing.floor_info, Listing.price)
         ).all():
-            key = (cx.id, l.trade_type, *ingest.listing_unit_key(l))
             if l.id in relisted_new_ids:
-                cls = "재등록"
+                change = "재등록"
             elif _fmt_confirm(l.confirm_date) == today:
-                cls = "신규"
+                change = "신규"
+            elif l.id in change_dir:
+                change = change_dir[l.id]  # 인하/인상
             else:
-                cls = "유지"
-            g = active_groups.get(key)
-            if g is None:
-                active_groups[key] = {
-                    "id": l.id, "complex": {"id": cx.id, "name": cx.name},
-                    "trade_type": l.trade_type, "dong": l.dong, "floor_info": l.floor_info,
-                    "price": l.price, "price_monthly": l.price_monthly,
-                    "confirm_date": _fmt_confirm(l.confirm_date), "dup_count": 1,
-                    "cls": cls,
-                    "relisted_from": _relist_info(prev_by_id.get(relistings.get(l.id))),
-                }
-                active_order.append(key)
-            else:
-                g["dup_count"] += 1
-                rank = {"재등록": 3, "신규": 2, "유지": 1}
-                if rank[cls] > rank[g["cls"]]:
-                    g["cls"] = cls
-                if not g["relisted_from"] and l.id in relistings:
-                    g["relisted_from"] = _relist_info(prev_by_id.get(relistings[l.id]))
-        active_rows = [active_groups[k] for k in active_order]
-
-        new_rows = sorted([r for r in active_rows if r["cls"] == "신규"],
-                          key=lambda r: r.get("confirm_date") or "", reverse=True)
-        maintained_rows = [r for r in active_rows if r["cls"] == "유지"]
-        relisted_rows = [r for r in active_rows if r["cls"] == "재등록"]
-
-        # ---- 가격 변동 이벤트 (전체 로그) ----
-        price_rows = []
-        for ev, l, cx in s.execute(
-            select(ListingEvent, Listing, Complex)
-            .join(Listing, ListingEvent.listing_id == Listing.id)
-            .join(Complex, Listing.complex_id == Complex.id)
-            .where(ListingEvent.event == "PRICE_CHANGED")
-            .order_by(desc(ListingEvent.occurred_at))
-        ).all():
-            if not ev.old_price or ev.new_price == ev.old_price:
-                continue
-            diff = (ev.new_price or 0) - ev.old_price
-            price_rows.append({
-                **_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name},
-                "diff": diff, "diff_pct": round(diff / ev.old_price * 100, 1),
+                change = "유지"
+            stats[change] += 1
+            prev = prev_by_id.get(relistings.get(l.id))
+            rows.append({
+                "id": l.id, "complex": {"id": cx.id, "name": cx.name},
+                "trade_type": l.trade_type, "dong": l.dong, "floor_info": l.floor_info,
+                "price": l.price, "price_monthly": l.price_monthly,
+                "confirm_date": _fmt_confirm(l.confirm_date), "occurred_at": None,
+                "change": change,
+                "relisted_from": {
+                    "removed_at": prev.removed_at.isoformat() if prev and prev.removed_at else None,
+                } if prev else None,
             })
-        price_rows = _dedup_events(price_rows, extra_key=cx_key)
-        up_rows = [p for p in price_rows if p["diff"] > 0]
-        down_rows = [p for p in price_rows if p["diff"] < 0]
 
-        # ---- 소멸 이벤트 (전체 로그) + 실거래/재등록 표시 ----
+        # ---- 소멸 매물 (전체 로그) + 실거래/재등록 표시 ----
         removed_raw = s.execute(
             select(ListingEvent, Listing, Complex)
             .join(Listing, ListingEvent.listing_id == Listing.id)
@@ -453,28 +411,28 @@ def api_changes():
             .where(ListingEvent.event == "REMOVED")
             .order_by(desc(ListingEvent.occurred_at))
         ).all()
-        listing_ids = [l.id for _, l, _ in removed_raw]
         matches = {
             m.listing_id: m for m in s.scalars(
-                select(Match).where(Match.listing_id.in_(listing_ids))
+                select(Match).where(Match.listing_id.in_([l.id for _, l, _ in removed_raw]))
             )
-        } if listing_ids else {}
+        } if removed_raw else {}
         txns = {
             t.id: t for t in s.scalars(select(Transaction).where(
                 Transaction.id.in_([m.transaction_id for m in matches.values()])
             ))
         } if matches else {}
-        removed_to_new = {old_id: new_id for new_id, old_id in relistings.items()}
-        new_by_id = {
-            nid: s.get(Listing, nid) for nid in removed_to_new.values()
-        }
+        new_by_id = {nid: s.get(Listing, nid) for nid in removed_to_new.values()}
 
-        removed_rows = []
-        removed_today = 0
         for ev, l, cx in removed_raw:
-            if ev.occurred_at and ev.occurred_at.date().isoformat() == today:
-                removed_today += 1
-            row = {**_event_json(ev, l), "complex": {"id": cx.id, "name": cx.name}}
+            stats["소멸"] += 1
+            row = {
+                "id": f"r{ev.id}", "complex": {"id": cx.id, "name": cx.name},
+                "trade_type": l.trade_type, "dong": l.dong, "floor_info": l.floor_info,
+                "price": l.price, "price_monthly": l.price_monthly,
+                "confirm_date": _fmt_confirm(l.confirm_date),
+                "occurred_at": ev.occurred_at.isoformat() if ev.occurred_at else None,
+                "change": "소멸",
+            }
             m = matches.get(l.id)
             if m and m.transaction_id in txns:
                 t = txns[m.transaction_id]
@@ -486,24 +444,12 @@ def api_changes():
                 nl = new_by_id.get(removed_to_new.get(l.id))
                 if nl is not None:
                     row["relisted_as"] = {
-                        "price": nl.price, "price_monthly": nl.price_monthly,
                         "confirm_date": _fmt_confirm(nl.confirm_date),
                         "first_seen": nl.first_seen.isoformat() if nl.first_seen else None,
                     }
-            removed_rows.append(row)
-        removed_rows = _dedup_events(removed_rows, extra_key=cx_key)
+            rows.append(row)
 
-        return {
-            "stats": {
-                "신규": len(new_rows), "유지": len(maintained_rows),
-                "재등록": len(relisted_rows), "소멸": removed_today,
-                "인상": len(up_rows), "인하": len(down_rows),
-            },
-            "categories": {
-                "신규": new_rows, "유지": maintained_rows, "재등록": relisted_rows,
-                "소멸": removed_rows, "인상": up_rows, "인하": down_rows,
-            },
-        }
+        return {"stats": stats, "rows": rows}
 
 
 @app.get("/api/feed")

@@ -4,8 +4,9 @@ import {
   Newspaper, ArrowUp, ArrowDown, Minus, ArrowRight, Clock, Inbox,
 } from 'lucide-react'
 import { getJSON } from '../api.js'
-import { fmtPrice, fmtDateShort, fmtFloor, fmtDateTime, SOURCE_LABELS } from '../format.js'
+import { fmtPrice, fmtDateShort, fmtFloor, fmtDateTime, sortListings, SOURCE_LABELS } from '../format.js'
 import SourceTag from '../components/SourceTag.jsx'
+import SortTh from '../components/SortTh.jsx'
 
 const TRADE_TYPES = ['매매', '전세', '월세']
 const JOB_LABELS = { listings: '매물', transactions: '실거래', articles: '뉴스·카페' }
@@ -22,7 +23,7 @@ function Delta({ today, prev }) {
   return <span className="delta flat"><Minus size={11} strokeWidth={2.5} aria-hidden="true" /></span>
 }
 
-function ChangeTag({ change }) {
+export function ChangeTag({ change }) {
   if (change === '신규') return <span className="tag NEW">신규</span>
   if (change === '인하') return <span className="tag cut">인하</span>
   if (change === '인상') return <span className="tag raise">인상</span>
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [sel, setSel] = useState(null) // {cid, tt}
+  const [sort, setSort] = useState({ col: '등록', dir: 'desc' })
 
   useEffect(() => {
     getJSON(`/api/dashboard?src=${src}&topic=${topic}`).then(setData).catch(setError)
@@ -58,6 +60,7 @@ export default function Dashboard() {
 
   const card = data.cards.find((c) => c.id === sel?.cid) || data.cards[0]
   const listings = card ? (card.listings[sel?.tt || '매매'] || []) : []
+  const sorted = sortListings(listings, sort.col, sort.dir)
 
   return (
     <>
@@ -103,14 +106,18 @@ export default function Dashboard() {
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>동/층</th><th className="num">호가</th><th>변동</th></tr>
+                  <tr>
+                    <SortTh label="등록" col="등록" sort={sort} setSort={setSort} defaultDir="desc" />
+                    <SortTh label="동/층" col="동층" sort={sort} setSort={setSort} />
+                    <SortTh label="호가" col="호가" sort={sort} setSort={setSort} num defaultDir="desc" />
+                    <th>변동</th>
+                  </tr>
                 </thead>
                 <tbody>
-                  {listings.map((l) => (
+                  {sorted.map((l) => (
                     <tr key={l.id}>
-                      <td>{l.dong || '-'} {fmtFloor(l.floor_info)}
-                        {l.dup_count > 1 && <span className="muted"> ·중개 {l.dup_count}곳</span>}
-                      </td>
+                      <td className="muted">{fmtDateShort(l.confirm_date)}</td>
+                      <td>{l.dong || '-'} {fmtFloor(l.floor_info)}</td>
                       <td className="num">{fmtPrice(l.price, l.price_monthly)}</td>
                       <td><ChangeTag change={l.change} /></td>
                     </tr>
