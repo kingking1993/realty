@@ -85,6 +85,25 @@ def _score(listing: Listing, txn: Transaction) -> int | None:
     return score
 
 
+def _strong_match(listing: Listing, txn: Transaction) -> bool:
+    """실거래가 이 매물의 '해당 동·해당 층'에 정확히 대응하는가.
+
+    재등록 추정(같은 세대가 다시 올라옴)을 뒤집을 만큼 강한 근거일 때만 True.
+    동은 양쪽 다 있고 일치해야 하며(실거래는 등기 후에야 동을 공개), 층도 명시 층수가
+    같거나 저/중/고 밴드가 맞아야 한다. → 이 경우 '재등록'이 아니라 실제로 팔린 것으로 본다.
+    """
+    if not (listing.dong and txn.apt_dong):
+        return False
+    if listing.dong.replace("동", "").strip() != txn.apt_dong.replace("동", "").strip():
+        return False
+    floor_num, band, total = parse_floor(listing.floor_info)
+    if floor_num is not None:
+        return txn.floor == floor_num
+    if band is not None and total:
+        return floor_band(txn.floor, total) == band
+    return False
+
+
 def _confidence(score: int) -> str:
     if score >= 4:
         return "HIGH"
@@ -156,12 +175,17 @@ def run_matching(session: Session, now: datetime | None = None) -> int:
     cutoff = now - timedelta(days=LOOKBACK_DAYS)
 
     relisted_removed_ids = set(find_relistings(session, now=now).values())
-    # 재등록으로 판명된 소멸 매물에 붙어 있던 (오)매칭 제거 — 자가 치유
+    # 재등록으로 추정된 소멸 매물에 붙은 '약한' (오)매칭은 제거 — 자가 치유.
+    # 단, 실거래가 해당 동·층에 정확히 뜬 강한 매칭이면 그대로 둔다
+    # (재등록 추정보다 실거래 신고를 우선: 실제로 팔린 뒤 다시 올라온 게 아니라 팔린 것).
     if relisted_removed_ids:
         for m in session.scalars(
             select(Match).where(Match.listing_id.in_(relisted_removed_ids))
         ):
-            session.delete(m)
+            listing = session.get(Listing, m.listing_id)
+            txn = session.get(Transaction, m.transaction_id)
+            if listing is None or txn is None or not _strong_match(listing, txn):
+                session.delete(m)
         session.flush()
 
     matched_txn_ids = set(session.scalars(select(Match.transaction_id)))
@@ -179,8 +203,6 @@ def run_matching(session: Session, now: datetime | None = None) -> int:
     for listing in removed:
         if listing.id in matched_listing_ids or listing.removed_at is None:
             continue
-        if listing.id in relisted_removed_ids:
-            continue  # 팔린 게 아니라 재등록된 매물 — 실거래로 매칭하지 않음
         window_start = (listing.removed_at - timedelta(days=DEAL_WINDOW_DAYS)).date()
         window_end = (listing.removed_at + timedelta(days=DEAL_WINDOW_DAYS)).date()
         candidates = session.scalars(
@@ -208,6 +230,10 @@ def run_matching(session: Session, now: datetime | None = None) -> int:
 
         if best is not None:
             score, _, txn = best
+            # 재등록으로 추정된 매물은 실거래가 해당 동·층에 정확히 뜬 강한 매칭일 때만
+            # 실거래로 인정한다(그 외에는 재등록으로 남김).
+            if listing.id in relisted_removed_ids and not _strong_match(listing, txn):
+                continue
             session.add(Match(
                 listing_id=listing.id,
                 transaction_id=txn.id,

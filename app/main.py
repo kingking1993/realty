@@ -401,23 +401,24 @@ def api_changes(days: int = 30):
                 **_event_json(ev, l),
                 "complex": {"id": cx.id, "name": cx.name},
             }
-            # 재등록으로 추정되면 실거래 매칭보다 우선해서 '재등록됨'으로 표시
-            new_id = removed_to_new.get(l.id)
-            if new_id is not None and new_id in rl_listings:
-                nl = rl_listings[new_id]
-                row["relisted_as"] = {
-                    "price": nl.price, "price_monthly": nl.price_monthly,
-                    "confirm_date": _fmt_confirm(nl.confirm_date),
-                    "first_seen": nl.first_seen.isoformat() if nl.first_seen else None,
+            # 실거래 매칭이 있으면(재등록 추정이라도 해당 동·층에 실거래가 뜬 강한 근거)
+            # 실거래를 우선 표시하고, 그렇지 않을 때만 재등록 추정을 표시한다.
+            m = matches.get(l.id)
+            if m and m.transaction_id in txns:
+                t = txns[m.transaction_id]
+                row["match"] = {
+                    "confidence": m.confidence,
+                    "deal_date": t.deal_date.isoformat(),
+                    "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
                 }
             else:
-                m = matches.get(l.id)
-                if m and m.transaction_id in txns:
-                    t = txns[m.transaction_id]
-                    row["match"] = {
-                        "confidence": m.confidence,
-                        "deal_date": t.deal_date.isoformat(),
-                        "price": t.price, "floor": t.floor, "apt_dong": t.apt_dong,
+                new_id = removed_to_new.get(l.id)
+                if new_id is not None and new_id in rl_listings:
+                    nl = rl_listings[new_id]
+                    row["relisted_as"] = {
+                        "price": nl.price, "price_monthly": nl.price_monthly,
+                        "confirm_date": _fmt_confirm(nl.confirm_date),
+                        "first_seen": nl.first_seen.isoformat() if nl.first_seen else None,
                     }
             removed.append(row)
         removed = _dedup_events(removed, extra_key=cx_key)[:100]

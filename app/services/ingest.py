@@ -119,23 +119,27 @@ def listing_unit_key(l: Listing) -> tuple:
     return (l.dong, l.floor_info, l.area_exclusive, l.price, l.price_monthly)
 
 
-def record_daily_counts(session: Session, complex_id: int, now: datetime | None = None) -> None:
-    """현재 active 매물 수를 거래유형별로 오늘 날짜에 기록 (하루 여러 번이면 덮어씀).
+def record_daily_counts(
+    session: Session, complex_id: int, now: datetime | None = None,
+    counts: dict[str, int] | None = None,
+) -> None:
+    """거래유형별 매물 수를 오늘 날짜에 기록 (하루 여러 번이면 덮어씀).
 
-    같은 세대를 여러 중개사가 올린 중복은 하나로 세어(네이버 '동일매물 묶기'와 동일 기준)
-    대시보드 수치가 네이버 웹 및 상세 페이지 목록과 일치하도록 한다.
+    counts가 주어지면(네이버 공식 dealCount/leaseCount/rentCount) 그 값을 그대로
+    저장해 대시보드 수치가 네이버 웹/앱의 '매물 N' 표시와 정확히 일치하게 한다.
+    없으면(건수 조회 실패 등) 우리가 수집해 둔 active 매물 수로 대체한다.
     """
     now = now or datetime.now()
     today = now.date()
-    # 세션이 autoflush=False라서, 같은 잡에서 방금 REMOVED로 표시한 매물이
-    # (신규 매물이 없어 flush를 안 거쳤다면) 이 SELECT엔 여전히 active로 잡힌다.
-    session.flush()
-    seen_units: dict[str, set[tuple]] = {}
-    for l in session.scalars(
-        select(Listing).where(Listing.complex_id == complex_id, Listing.status == "active")
-    ):
-        seen_units.setdefault(l.trade_type, set()).add(listing_unit_key(l))
-    counts = {tt: len(units) for tt, units in seen_units.items()}
+    if counts is None:
+        # 세션이 autoflush=False라서, 같은 잡에서 방금 REMOVED로 표시한 매물이
+        # (신규 매물이 없어 flush를 안 거쳤다면) 이 SELECT엔 여전히 active로 잡힌다.
+        session.flush()
+        counts = {}
+        for l in session.scalars(
+            select(Listing).where(Listing.complex_id == complex_id, Listing.status == "active")
+        ):
+            counts[l.trade_type] = counts.get(l.trade_type, 0) + 1
     for trade_type in ("매매", "전세", "월세"):
         count = counts.get(trade_type, 0)
         row = session.scalar(

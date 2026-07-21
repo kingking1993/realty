@@ -46,14 +46,14 @@ def run_listings_job() -> str:
         complexes = ingest.sync_complexes(session)
         for cx in complexes:
             try:
-                snapshot = naver_land.fetch_listings(cx.naver_complex_no)
+                snapshot, counts = naver_land.fetch_listings(cx.naver_complex_no)
             except naver_land.NaverLandError as e:
                 all_ok = False
                 lines.append(f"{cx.name}: 수집 실패 — {e} (diff 건너뜀)")
                 logger.error("%s 매물 수집 실패: %s", cx.name, e)
                 continue
             stats = ingest.ingest_listing_snapshot(session, cx.id, snapshot)
-            ingest.record_daily_counts(session, cx.id)
+            ingest.record_daily_counts(session, cx.id, counts=counts or None)
             lines.append(
                 f"{cx.name}: 총 {len(snapshot)}건 "
                 f"(신규 {stats['new']}, 가격변동 {stats['price_changed']}, 소멸 {stats['removed']})"

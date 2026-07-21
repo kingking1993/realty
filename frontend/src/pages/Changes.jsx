@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import {
   PackagePlus, TrendingDown, TrendingUp, PackageX, CheckCheck,
   ArrowUp, ArrowDown, RefreshCw,
@@ -112,18 +112,13 @@ export default function Changes() {
           <table>
             <thead>
               <tr>
-                <th>등록일</th><th>단지</th><th>유형</th><th>동/층</th>
-                <th className="num">호가</th><th>상태</th>
+                <th>등록일</th><th>상태</th><th>동/층</th><th className="num">호가</th>
               </tr>
             </thead>
             <tbody>
               {data.news.map((ev) => (
                 <tr key={ev.id}>
-                  <td className="muted">{ev.confirm_date || fmtDateShort(ev.occurred_at)}</td>
-                  <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
-                  <td>{ev.trade_type}</td>
-                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
-                  <td className="num">{fmtPrice(ev.new_price ?? ev.price, ev.price_monthly)}</td>
+                  <td className="muted">{fmtDateShort(ev.confirm_date || ev.occurred_at)}</td>
                   <td>
                     {ev.relisted_from
                       ? <RelistBadge from={ev.relisted_from} />
@@ -131,6 +126,8 @@ export default function Changes() {
                         ? <span className="tag REMOVED">소멸</span>
                         : <span className="tag">유지 중</span>}
                   </td>
+                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
+                  <td className="num">{fmtPrice(ev.new_price ?? ev.price, ev.price_monthly)}</td>
                 </tr>
               ))}
             </tbody>
@@ -146,16 +143,19 @@ export default function Changes() {
           <table>
             <thead>
               <tr>
-                <th>시각</th><th>단지</th><th>유형</th><th>동/층</th>
-                <th className="num">호가 변동</th><th className="num">변동폭</th><th>상태</th>
+                <th>시각</th><th>상태</th><th>동/층</th>
+                <th className="num">호가 변동</th><th className="num">변동폭</th>
               </tr>
             </thead>
             <tbody>
               {data.price_changes.map((ev) => (
                 <tr key={ev.id}>
                   <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
-                  <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
-                  <td>{ev.trade_type}</td>
+                  <td>
+                    {ev.status === 'removed'
+                      ? <span className="tag REMOVED">소멸</span>
+                      : <span className="tag">유지 중</span>}
+                  </td>
                   <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
                   <td className="num">{fmtPrice(ev.old_price)} → {fmtPrice(ev.new_price)}</td>
                   <td className="num">
@@ -170,11 +170,6 @@ export default function Changes() {
                         {fmtPrice(ev.diff)} (+{ev.diff_pct}%)
                       </span>
                     )}
-                  </td>
-                  <td>
-                    {ev.status === 'removed'
-                      ? <span className="tag REMOVED">소멸</span>
-                      : <span className="tag">유지 중</span>}
                   </td>
                 </tr>
               ))}
@@ -194,30 +189,26 @@ export default function Changes() {
           <table>
             <thead>
               <tr>
-                <th>시각</th><th>단지</th><th>유형</th><th>동/층</th>
-                <th className="num">마지막 호가</th><th>실거래 매칭</th>
+                <th>시각</th><th>실거래/재등록</th><th>동/층</th>
+                <th className="num">마지막 호가</th>
               </tr>
             </thead>
             <tbody>
               {data.removed.map((ev) => (
                 <tr key={ev.id}>
                   <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
-                  <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
-                  <td>{ev.trade_type}</td>
-                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
-                  <td className="num">{fmtPrice(ev.old_price ?? ev.price, ev.price_monthly)}</td>
                   <td>
-                    {ev.relisted_as ? (
+                    {ev.match ? (
+                      <span className="match-note">
+                        <span className={`tag ${ev.match.confidence}`}>{ev.match.confidence}</span>{' '}
+                        {fmtDateShort(ev.match.deal_date)} {fmtPrice(ev.match.price)}에 거래 추정
+                      </span>
+                    ) : ev.relisted_as ? (
                       <span className="match-note">
                         <span className="tag relist">
                           <RefreshCw size={11} strokeWidth={2.2} aria-hidden="true" />재등록됨
                         </span>{' '}
-                        {ev.relisted_as.confirm_date || fmtDateShort(ev.relisted_as.first_seen)}에 다시 등록 (실거래 아님 추정)
-                      </span>
-                    ) : ev.match ? (
-                      <span className="match-note">
-                        <span className={`tag ${ev.match.confidence}`}>{ev.match.confidence}</span>{' '}
-                        {fmtDateShort(ev.match.deal_date)} {fmtPrice(ev.match.price)}에 거래 추정
+                        {fmtDateShort(ev.relisted_as.confirm_date || ev.relisted_as.first_seen)}에 다시 등록
                       </span>
                     ) : ev.trade_type === '매매' ? (
                       <span className="muted">매칭 대기 (신고 지연 최대 30일)</span>
@@ -225,6 +216,8 @@ export default function Changes() {
                       <span className="muted">-</span>
                     )}
                   </td>
+                  <td>{ev.dong || '-'} {ev.floor_info}<DupBadge count={ev.dup_count} /></td>
+                  <td className="num">{fmtPrice(ev.old_price ?? ev.price, ev.price_monthly)}</td>
                 </tr>
               ))}
             </tbody>

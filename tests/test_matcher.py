@@ -152,19 +152,35 @@ def test_find_relistings_ignores_out_of_window_and_other_units(session, complex_
     assert find_relistings(session, now=datetime(2026, 8, 5)) == {}
 
 
-def test_relisted_removal_excluded_and_stale_match_cleaned(session, complex_obj):
-    """이전에 실거래로 (오)매칭된 소멸 매물이라도, 이후 같은 세대로 재등록되면
-    매칭을 지우고 더는 실거래로 매칭하지 않는다."""
-    removed = _removed_listing(complex_obj.id, no="old", removed_at=datetime(2026, 7, 1))
-    txn = _txn(complex_obj.id, deal_date=date(2026, 6, 28))
+def test_relisted_weak_match_yields_to_relisting(session, complex_obj):
+    """재등록 추정 매물에 붙은 '약한' 매칭(동 정보 없는 실거래)은, 이후 같은 세대가
+    다시 등록되면 정리되고 더는 실거래로 매칭하지 않는다."""
+    # 동/층 밴드만 있는 약한 매칭 조건 (실거래 apt_dong 없음)
+    removed = _removed_listing(complex_obj.id, no="old", dong="", floor_info="중/25",
+                               removed_at=datetime(2026, 7, 1))
+    txn = _txn(complex_obj.id, deal_date=date(2026, 6, 28), apt_dong="", floor=12)
     session.add_all([removed, txn])
     session.flush()
-    # 1차: 재등록 매물이 아직 없어 실거래로 매칭됨
-    assert run_matching(session, now=datetime(2026, 7, 2)) == 1
+    assert run_matching(session, now=datetime(2026, 7, 2)) == 1  # 아직 재등록 없음 → 매칭
     assert len(session.scalars(select(Match)).all()) == 1
 
-    # 이후 같은 세대가 다시 등록됨 → 판 게 아니라 재등록
-    session.add(_active_listing(complex_obj.id, no="new", first_seen=datetime(2026, 7, 6)))
+    session.add(_active_listing(complex_obj.id, no="new", dong="", floor_info="중/25",
+                                first_seen=datetime(2026, 7, 6)))
     session.flush()
     run_matching(session, now=datetime(2026, 7, 10))
-    assert len(session.scalars(select(Match)).all()) == 0  # 오매칭 정리됨
+    assert len(session.scalars(select(Match)).all()) == 0  # 약한 매칭 정리, 재등록으로 남김
+
+
+def test_strong_transaction_match_overrides_relisting(session, complex_obj):
+    """재등록으로 추정되더라도, 실거래가 해당 동·층에 정확히 뜨면(강한 근거)
+    재등록이 아니라 실제 거래로 보고 실거래 매칭을 유지한다."""
+    removed = _removed_listing(complex_obj.id, no="old", dong="101동", floor_info="12/25",
+                               removed_at=datetime(2026, 7, 1))
+    txn = _txn(complex_obj.id, deal_date=date(2026, 6, 28), apt_dong="101", floor=12)
+    same_unit_reappears = _active_listing(complex_obj.id, no="new", dong="101동",
+                                          floor_info="12/25", first_seen=datetime(2026, 7, 6))
+    session.add_all([removed, txn, same_unit_reappears])
+    session.flush()
+    assert run_matching(session, now=datetime(2026, 7, 10)) == 1  # 강한 매칭 → 실거래로 인정
+    m = session.scalar(select(Match))
+    assert m.listing_id == removed.id and m.confidence == "HIGH"

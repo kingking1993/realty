@@ -23,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 COMPLEX_PAGE_URL = "https://new.land.naver.com/complexes/{no}"
 ARTICLE_API_URL = "https://new.land.naver.com/api/articles/complex/{no}"
+COMPLEX_DETAIL_URL = "https://new.land.naver.com/api/complexes/{no}"
+
+# 네이버가 단지 상세에서 자체 집계해 화면에 노출하는 거래유형별 매물 건수 필드
+COUNT_FIELDS = {"매매": "dealCount", "전세": "leaseCount", "월세": "rentCount"}
 
 HEADERS = {
     "User-Agent": (
@@ -98,6 +102,28 @@ def _fetch_token(client: httpx.Client, complex_no: str) -> str:
     return m.group(0)
 
 
+def _fetch_counts(client: httpx.Client, token: str, complex_no: str) -> dict[str, int]:
+    """네이버 단지 상세의 거래유형별 매물 건수(dealCount 등)를 그대로 가져온다.
+
+    이 값이 네이버 웹/앱에 표시되는 '매물 N' 숫자다. 실패해도 수집 전체를 막지
+    않도록 빈 dict을 돌려주고, 호출측이 우리 수집분으로 대체하게 한다.
+    """
+    headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {token}",
+        "Referer": COMPLEX_PAGE_URL.format(no=complex_no),
+    }
+    try:
+        resp = client.get(COMPLEX_DETAIL_URL.format(no=complex_no),
+                          params={"sameAddressGroup": "false"}, headers=headers, timeout=20)
+        resp.raise_for_status()
+        detail = (resp.json() or {}).get("complexDetail") or {}
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning("complex %s 매물 건수 조회 실패: %s", complex_no, e)
+        return {}
+    return {tt: int(detail.get(field) or 0) for tt, field in COUNT_FIELDS.items()}
+
+
 def _fetch_page(client: httpx.Client, token: str, complex_no: str, page: int) -> dict:
     params = {
         "realEstateType": "APT",
@@ -130,15 +156,19 @@ def _fetch_page(client: httpx.Client, token: str, complex_no: str, page: int) ->
     raise NaverLandError(f"페이지 {page} 수집 실패: {last_err}")
 
 
-def fetch_listings(complex_no: str) -> list[dict]:
-    """단지의 전체 매물 스냅샷을 수집해 정규화된 dict 목록으로 반환.
+def fetch_listings(complex_no: str) -> tuple[list[dict], dict[str, int]]:
+    """단지의 전체 매물 스냅샷과 네이버 공식 매물 건수를 함께 수집.
 
-    실패 시 NaverLandError — 부분 수집본을 반환하지 않는다 (diff 오판 방지).
+    반환: (정규화된 매물 dict 목록, {거래유형: 네이버 건수}).
+    매물 목록 수집 실패 시 NaverLandError — 부분 수집본을 반환하지 않는다
+    (diff 오판 방지). 건수 조회는 부가 정보라 실패 시 빈 dict.
     """
     articles: list[dict] = []
     seen: set[str] = set()
     with httpx.Client(headers=HEADERS, follow_redirects=True, timeout=25) as client:
         token = _fetch_token(client, complex_no)
+        time.sleep(random.uniform(1.0, 2.0))
+        counts = _fetch_counts(client, token, complex_no)
         time.sleep(random.uniform(1.0, 2.0))
         for page in range(1, MAX_PAGES + 1):
             data = _fetch_page(client, token, complex_no, page)
@@ -150,8 +180,8 @@ def fetch_listings(complex_no: str) -> list[dict]:
             if not data.get("isMoreData"):
                 break
             time.sleep(random.uniform(1.5, 3.0))
-    logger.info("complex %s: 매물 %d건 수집", complex_no, len(articles))
-    return articles
+    logger.info("complex %s: 매물 %d건 수집 (네이버 집계 %s)", complex_no, len(articles), counts)
+    return articles, counts
 
 
 def fetch_complex_name(complex_no: str) -> str:

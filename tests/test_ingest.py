@@ -132,19 +132,26 @@ def test_daily_counts(session, complex_obj):
     assert rows == {"매매": 1, "전세": 1, "월세": 0}
 
 
-def test_daily_counts_dedupes_same_unit(session, complex_obj):
-    """같은 세대(동·층·면적·가격)를 여러 중개사가 올린 중복은 1건으로 센다
-    (네이버 '동일매물 묶기'와 동일). 원시 매물 3건이지만 세대는 2개."""
+def test_daily_counts_uses_naver_counts_when_given(session, complex_obj):
+    """네이버 공식 건수(counts)가 주어지면 우리 수집분과 무관하게 그 값을 저장한다
+    — 대시보드가 네이버 웹의 '매물 N'과 정확히 일치하도록."""
     now = datetime(2026, 7, 13, 10, 0)
-    ingest_listing_snapshot(session, complex_obj.id, [
-        _item("a1", dong="101동", floor_info="중/15", price=130000),
-        _item("a2", dong="101동", floor_info="중/15", price=130000),  # a1과 동일 세대
-        _item("a3", dong="102동", floor_info="고/15", price=125000),
-    ], now=now)
-    record_daily_counts(session, complex_obj.id, now=now)
+    ingest_listing_snapshot(session, complex_obj.id, [_item("a1"), _item("a2")], now=now)
+    record_daily_counts(session, complex_obj.id, now=now,
+                        counts={"매매": 13, "전세": 2, "월세": 0})
+    from app.models import DailyCount
+    rows = {r.trade_type: r.count for r in session.scalars(select(DailyCount))}
+    assert rows == {"매매": 13, "전세": 2, "월세": 0}
+
+
+def test_daily_counts_falls_back_to_collected(session, complex_obj):
+    """counts가 없으면(건수 조회 실패) 우리가 수집한 active 매물 수로 대체."""
+    now = datetime(2026, 7, 13, 10, 0)
+    ingest_listing_snapshot(session, complex_obj.id, [_item("a1"), _item("a2")], now=now)
+    record_daily_counts(session, complex_obj.id, now=now, counts=None)
     from app.models import DailyCount
     row = session.scalar(select(DailyCount).where(DailyCount.trade_type == "매매"))
-    assert row.count == 2  # 원시 3건이 아니라 세대 2개
+    assert row.count == 2
 
 
 def test_daily_counts_reflects_removal_with_autoflush_off(complex_obj_noautoflush):
