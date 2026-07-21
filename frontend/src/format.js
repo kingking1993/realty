@@ -17,6 +17,12 @@ export function fmtDateShort(iso) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
+/** '중/15'→'중', '11/15'→'11' — 총 층수(일괄 15층) 생략. */
+export function fmtFloor(info) {
+  if (!info) return ''
+  return String(info).split('/')[0]
+}
+
 /** ISO → 'YYYY-MM-DD'. */
 export function fmtDate(iso) {
   return iso ? iso.slice(0, 10) : '-'

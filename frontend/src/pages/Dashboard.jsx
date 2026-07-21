@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Activity, Newspaper, ArrowUp, ArrowDown, Minus,
-  ArrowRight, Clock, Inbox,
+  Newspaper, ArrowUp, ArrowDown, Minus, ArrowRight, Clock, Inbox,
 } from 'lucide-react'
 import { getJSON } from '../api.js'
-import { fmtPrice, fmtDateShort, fmtDateTime, EVENT_LABELS, SOURCE_LABELS } from '../format.js'
+import { fmtPrice, fmtDateShort, fmtFloor, fmtDateTime, SOURCE_LABELS } from '../format.js'
 import SourceTag from '../components/SourceTag.jsx'
 
 const TRADE_TYPES = ['매매', '전세', '월세']
@@ -15,24 +14,19 @@ function Delta({ today, prev }) {
   if (prev === null || prev === undefined) return null
   const diff = today - prev
   if (diff > 0) {
-    return (
-      <span className="delta up">
-        <ArrowUp size={12} strokeWidth={2.5} aria-hidden="true" />{diff}
-      </span>
-    )
+    return <span className="delta up"><ArrowUp size={11} strokeWidth={2.5} aria-hidden="true" />{diff}</span>
   }
   if (diff < 0) {
-    return (
-      <span className="delta down">
-        <ArrowDown size={12} strokeWidth={2.5} aria-hidden="true" />{-diff}
-      </span>
-    )
+    return <span className="delta down"><ArrowDown size={11} strokeWidth={2.5} aria-hidden="true" />{-diff}</span>
   }
-  return (
-    <span className="delta flat">
-      <Minus size={12} strokeWidth={2.5} aria-hidden="true" />
-    </span>
-  )
+  return <span className="delta flat"><Minus size={11} strokeWidth={2.5} aria-hidden="true" /></span>
+}
+
+function ChangeTag({ change }) {
+  if (change === '신규') return <span className="tag NEW">신규</span>
+  if (change === '인하') return <span className="tag cut">인하</span>
+  if (change === '인상') return <span className="tag raise">인상</span>
+  return null
 }
 
 export default function Dashboard() {
@@ -41,10 +35,15 @@ export default function Dashboard() {
   const topic = params.get('topic') || ''
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [sel, setSel] = useState(null) // {cid, tt}
 
   useEffect(() => {
     getJSON(`/api/dashboard?src=${src}&topic=${topic}`).then(setData).catch(setError)
   }, [src, topic])
+
+  useEffect(() => {
+    if (data && data.cards.length && !sel) setSel({ cid: data.cards[0].id, tt: '매매' })
+  }, [data, sel])
 
   if (error) return <div className="empty">불러오기 실패: {String(error.message || error)}</div>
   if (!data) return <div className="empty">불러오는 중…</div>
@@ -57,17 +56,18 @@ export default function Dashboard() {
     setParams(p)
   }
 
+  const card = data.cards.find((c) => c.id === sel?.cid) || data.cards[0]
+  const listings = card ? (card.listings[sel?.tt || '매매'] || []) : []
+
   return (
     <>
-      <div className="page-head">
-        <h1>대시보드</h1>
-      </div>
+      <div className="page-head"><h1>대시보드</h1></div>
 
       {data.cards.length === 0 && (
         <div className="empty">
           <Inbox size={22} strokeWidth={1.8} aria-hidden="true" /><br />
           등록된 단지가 없습니다. <code>complexes.yaml</code>에 단지를 추가한 뒤
-          상단의 "매물 수집" 버튼을 누르거나 <code>python scripts/collect_now.py</code>를 실행하세요.
+          상단의 "매물 수집" 버튼을 누르세요.
         </div>
       )}
 
@@ -79,14 +79,16 @@ export default function Dashboard() {
             <div className="countrow">
               {TRADE_TYPES.map((tt) => {
                 const [today, prev] = c.counts[tt]
+                const active = sel?.cid === c.id && sel?.tt === tt
                 return (
-                  <div className="item" key={tt}>
-                    <div className="label">{tt}</div>
-                    <div className="value">
-                      {today}
-                      <Delta today={today} prev={prev} />
-                    </div>
-                  </div>
+                  <button
+                    className={`item${active ? ' active' : ''}`}
+                    key={tt}
+                    onClick={() => setSel({ cid: c.id, tt })}
+                  >
+                    <span className="label">{tt}</span>
+                    <span className="value">{today}<Delta today={today} prev={prev} /></span>
+                  </button>
                 )
               })}
             </div>
@@ -94,51 +96,36 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <h2>
-        <span className="h2-icon"><Activity size={18} strokeWidth={2.2} aria-hidden="true" /></span>
-        최근 매물 변동
-      </h2>
-      {data.events.length ? (
+      {card && (
         <>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>시각</th><th>단지</th><th>변동</th><th>유형</th><th>동/층</th>
-                <th className="num">가격</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.events.map((ev) => (
-                <tr key={ev.id}>
-                  <td className="muted">{fmtDateShort(ev.occurred_at)}</td>
-                  <td><Link to={`/complex/${ev.complex.id}`}>{ev.complex.name}</Link></td>
-                  <td><span className={`tag ${ev.event}`}>{EVENT_LABELS[ev.event]}</span></td>
-                  <td>{ev.trade_type}</td>
-                  <td>{ev.dong || '-'} {ev.floor_info}</td>
-                  <td className="num">
-                    {ev.event === 'PRICE_CHANGED'
-                      ? `${fmtPrice(ev.old_price)} → ${fmtPrice(ev.new_price)}`
-                      : fmtPrice(ev.new_price ?? ev.old_price ?? ev.price)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p>
-          <Link className="more-link" to="/changes">
-            매물 변동 전체 보기
-            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-          </Link>
-        </p>
+          <h2>{card.name} · {sel?.tt || '매매'} 현황 <span className="muted">{listings.length}건</span></h2>
+          {listings.length ? (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>동/층</th><th className="num">호가</th><th>변동</th></tr>
+                </thead>
+                <tbody>
+                  {listings.map((l) => (
+                    <tr key={l.id}>
+                      <td>{l.dong || '-'} {fmtFloor(l.floor_info)}
+                        {l.dup_count > 1 && <span className="muted"> ·중개 {l.dup_count}곳</span>}
+                      </td>
+                      <td className="num">{fmtPrice(l.price, l.price_monthly)}</td>
+                      <td><ChangeTag change={l.change} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="empty">현재 {sel?.tt || '매매'} 매물이 없습니다.</div>
+          )}
         </>
-      ) : (
-        <div className="empty">아직 수집된 매물 변동이 없습니다.</div>
       )}
 
       <h2>
-        <span className="h2-icon"><Newspaper size={18} strokeWidth={2.2} aria-hidden="true" /></span>
+        <span className="h2-icon"><Newspaper size={16} strokeWidth={2.2} aria-hidden="true" /></span>
         최신 소식
       </h2>
       <div className="filter-row">
@@ -174,8 +161,7 @@ export default function Dashboard() {
           ))}
           <p>
             <Link className="more-link" to={`/feed?source=${src}&topic=${topic}`}>
-              전체 보기
-              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              전체 보기<ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </Link>
           </p>
         </>
@@ -189,10 +175,7 @@ export default function Dashboard() {
             <Clock size={13} strokeWidth={2} aria-hidden="true" />
             {JOB_LABELS[job]} 마지막 수집:{' '}
             {log ? (
-              <>
-                {fmtDateTime(log.started_at)}
-                {!log.ok && <span className="fail"> (일부 실패)</span>}
-              </>
+              <>{fmtDateTime(log.started_at)}{!log.ok && <span className="fail"> (일부 실패)</span>}</>
             ) : '없음'}
           </div>
         ))}

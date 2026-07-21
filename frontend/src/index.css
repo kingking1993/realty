@@ -280,23 +280,37 @@ h2 {
   margin-left: 8px;
 }
 
-/* 매매·전세·월세를 한 행에 컴팩트하게 */
+/* 매매·전세·월세 — 클릭하면 아래 '매물 현황'이 해당 유형으로 전환되는 버튼 */
 .countrow {
   display: flex;
-  align-items: baseline;
-  gap: 18px;
+  gap: 8px;
   margin-top: 12px;
 }
 .countrow .item {
+  flex: 1;
   display: inline-flex;
   align-items: baseline;
+  justify-content: center;
   gap: 6px;
+  font-family: var(--font-sans);
+  background: var(--md-surface-container);
+  border: 1px solid var(--md-line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 200ms var(--md-ease);
+}
+.countrow .item:hover { background: var(--md-surface-container-low); }
+.countrow .item.active {
+  background: var(--md-primary-container);
+  border-color: transparent;
 }
 .countrow .item .label {
   font-size: 12px;
   font-weight: 500;
   color: var(--md-on-surface-variant);
 }
+.countrow .item.active .label { color: var(--md-on-primary-container); }
 .countrow .item .value {
   font-size: 1.15rem;
   font-weight: 700;
@@ -306,6 +320,38 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+
+/* 매물 변동 — 카테고리 버튼 (2행) */
+.catbtns { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.catrow { display: flex; gap: 8px; }
+.catbtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  height: 40px;
+  padding: 0 10px;
+  color: var(--md-on-surface-variant);
+  background: var(--md-background);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 200ms var(--md-ease);
+}
+.catbtn:hover { background: var(--md-surface-container-low); }
+.catbtn.active {
+  background: var(--md-on-background);
+  color: #fff;
+  border-color: var(--md-on-background);
+}
+.catbtn .n {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* delta — 토널 칩 (상승=적색, 하락=녹색: 국내 관례) */
@@ -442,6 +488,8 @@ table a:hover, table a:focus-visible { text-decoration: underline; }
   box-shadow: inset 0 0 0 1px var(--md-outline-variant);
 }
 .tag.relist { background: #FEF3C7; color: #92400E; }
+.tag.cut { background: var(--md-down-container); color: var(--md-on-down-container); }
+.tag.raise { background: var(--md-up-container); color: var(--md-on-up-container); }
 .tag.news { background: var(--md-primary-container); color: var(--md-on-primary-container); }
 .tag.cafe { background: #FDF3E7; color: #A16207; }
 .tag.blind { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
